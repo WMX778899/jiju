@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AniList · 追番清单</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Zen+Dots&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ===== 背景粒子画布 ===== -->
+  <canvas id="particleCanvas"></canvas>
+
+  <!-- ===== 主容器 ===== -->
+  <div class="app-container">
+
+    <!-- ===== 头部 ===== -->
+    <header class="app-header">
+      <div class="header-content">
+        <div class="header-brand">
+          <span class="header-icon">🎌</span>
+          <h1 class="header-title">AniList</h1>
+          <span class="header-subtitle">追番备忘</span>
+        </div>
+        <div class="header-actions">
+          <button class="header-btn" id="exportBtn" title="导出数据">
+            <i class="fas fa-download"></i>
+          </button>
+          <button class="header-btn" id="importBtn" title="导入数据">
+            <i class="fas fa-upload"></i>
+          </button>
+          <input type="file" id="importFileInput" accept=".json" style="display:none">
+          <button class="header-btn" id="resetBtn" title="重置所有数据">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===== 搜索与筛选栏 ===== -->
+    <section class="filter-bar">
+      <div class="search-wrapper">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" id="searchInput" class="search-input" placeholder="搜索标题…">
+        <button class="search-clear" id="searchClear"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="filter-group">
+        <div class="filter-select-wrapper">
+          <select id="typeFilter" class="filter-select">
+            <option value="all">全部类型</option>
+            <option value="anime">🎌 动漫</option>
+            <option value="drama">📺 剧集</option>
+            <option value="movie">🎬 电影</option>
+          </select>
+        </div>
+        <div class="filter-select-wrapper">
+          <select id="statusFilter" class="filter-select">
+            <option value="all">全部状态</option>
+            <option value="watching">▶ 在看</option>
+            <option value="want_to_watch">⏳ 想看</option>
+            <option value="completed">✅ 看完</option>
+            <option value="on_hold">💤 搁置</option>
+          </select>
+        </div>
+        <div class="filter-select-wrapper">
+          <select id="sortSelect" class="filter-select">
+            <option value="newest">最新添加</option>
+            <option value="oldest">最早添加</option>
+            <option value="title">名称排序</option>
+            <option value="rating">评分最高</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 统计栏 ===== -->
+    <section class="stats-bar" id="statsBar">
+      <div class="stat-item" data-status="all">
+        <span class="stat-count" id="statAll">0</span>
+        <span class="stat-label">全部</span>
+      </div>
+      <div class="stat-item" data-status="watching">
+        <span class="stat-count" id="statWatching">0</span>
+        <span class="stat-label">在看</span>
+      </div>
+      <div class="stat-item" data-status="want_to_watch">
+        <span class="stat-count" id="statWant">0</span>
+        <span class="stat-label">想看</span>
+      </div>
+      <div class="stat-item" data-status="completed">
+        <span class="stat-count" id="statCompleted">0</span>
+        <span class="stat-label">看完</span>
+      </div>
+      <div class="stat-item" data-status="on_hold">
+        <span class="stat-count" id="statHold">0</span>
+        <span class="stat-label">搁置</span>
+      </div>
+    </section>
+
+    <!-- ===== 列表区 ===== -->
+    <main class="list-container" id="listContainer">
+      <!-- 卡片由 JS 动态渲染 -->
+    </main>
+
+    <!-- ===== 空状态 ===== -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">📋</div>
+      <p class="empty-text" id="emptyText">还没有记录，点 + 添加吧</p>
+    </div>
+
+  </div>
+
+  <!-- ===== 浮动添加按钮 ===== -->
+  <button class="fab" id="fabAdd" title="添加新条目">
+    <i class="fas fa-plus"></i>
+  </button>
+
+  <!-- ===== 模态框（添加/编辑） ===== -->
+  <div class="modal-overlay" id="formModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modalTitle">添加条目</h2>
+        <button class="modal-close" id="modalClose"><i class="fas fa-times"></i></button>
+      </div>
+      <form class="anime-form" id="animeForm">
+        <input type="hidden" id="formId">
+
+        <div class="form-group">
+          <label class="form-label" for="formTitle">名称 *</label>
+          <input type="text" id="formTitle" class="form-input" placeholder="输入名称…" required maxlength="100">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="formType">类型</label>
+            <div class="form-select-wrapper">
+              <select id="formType" class="form-select">
+                <option value="anime">🎌 动漫</option>
+                <option value="drama">📺 剧集</option>
+                <option value="movie">🎬 电影</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="formStatus">状态</label>
+            <div class="form-select-wrapper">
+              <select id="formStatus" class="form-select">
+                <option value="watching">▶ 在看</option>
+                <option value="want_to_watch">⏳ 想看</option>
+                <option value="completed">✅ 看完</option>
+                <option value="on_hold">💤 搁置</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">评分</label>
+          <div class="star-rating" id="starRating">
+            <span class="star" data-value="1">☆</span>
+            <span class="star" data-value="2">☆</span>
+            <span class="star" data-value="3">☆</span>
+            <span class="star" data-value="4">☆</span>
+            <span class="star" data-value="5">☆</span>
+          </div>
+          <input type="hidden" id="formRating" value="0">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="formNotes">备注</label>
+          <textarea id="formNotes" class="form-textarea" placeholder="写下你的感想…" rows="3" maxlength="500"></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-cancel" id="formCancel">取消</button>
+          <button type="submit" class="btn btn-submit" id="formSubmit">
+            <i class="fas fa-check"></i> 保存
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== 删除确认弹窗 ===== -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h2 class="modal-title">确认删除</h2>
+        <button class="modal-close" id="deleteClose"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="delete-body">
+        <div class="delete-icon">⚠️</div>
+        <p class="delete-text">确定要删除 <strong id="deleteTitle">此条目</strong> 吗？</p>
+        <p class="delete-hint">此操作不可撤销。</p>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-cancel" id="deleteCancel">取消</button>
+        <button type="button" class="btn btn-danger" id="deleteConfirm">
+          <i class="fas fa-trash"></i> 删除
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Toast 消息 ===== -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ===== JS ===== -->
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

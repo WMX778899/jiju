@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AniList · 追番清单</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Zen+Dots&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0b0a12;
+      color: #f0eef8;
+      font-family: 'Noto Sans SC', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+    }
+    .code { font-size: 80px; font-weight: 900; background: linear-gradient(135deg, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    h1 { font-size: 24px; margin: 16px 0 8px; }
+    p { color: #9a94b8; margin-bottom: 24px; }
+    a {
+      display: inline-block;
+      padding: 10px 28px;
+      background: linear-gradient(135deg, #a855f7, #ec4899);
+      color: #fff;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: 0.2s;
+    }
+    a:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(168,85,247,0.35); }
+  </style>
+</head>
+<body>
+  <div class="code">404</div>
+  <h1>页面未找到</h1>
+  <p>不过别担心，追番记录都还在 🎌</p>
+  <a href="/">← 返回 AniList</a>
+  <script>
+    // GitHub Pages SPA 重定向：将 sessionStorage 中的路径恢复
+    (function() {
+      var redirect = sessionStorage.redirect;
+      delete sessionStorage.redirect;
+      if (redirect && redirect !== location.href) {
+        history.replaceState(null, null, redirect);
+      }
+    })();
+  </script>
+</body>
+</html>
