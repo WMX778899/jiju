@@ -885,13 +885,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // 初始化本地数据存储
   AnimeDB.init();
 
-  // 加载 GitHub 配置（优先用已保存的，没有则用全局默认值）
+  // 从 URL 参数自动读取 token（用于跨设备首次配置）
+  // 用法: https://.../?token=ghp_xxxxx
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken = urlParams.get('token');
   let cfg = AnimeDB.getGitHubConfig();
   const defaultToken = typeof GITHUB_DEFAULT_TOKEN !== 'undefined' ? GITHUB_DEFAULT_TOKEN : '';
   const defaultRepo = typeof GITHUB_DEFAULT_REPO !== 'undefined' ? GITHUB_DEFAULT_REPO : '';
 
-  if (!cfg && defaultToken) {
-    // 首次使用，自动填入全局默认值
+  if (!cfg && urlToken) {
+    // 从 URL 拿到 token，存到 localStorage
+    AnimeDB.saveGitHubConfig({ token: urlToken, repo: defaultRepo || 'WMX778899/jiju' });
+    cfg = AnimeDB.getGitHubConfig();
+    // 清理 URL 中的 token
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+  } else if (!cfg && defaultToken) {
     AnimeDB.saveGitHubConfig({ token: defaultToken, repo: defaultRepo });
     cfg = AnimeDB.getGitHubConfig();
   }
