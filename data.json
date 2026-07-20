@@ -1,15 +1,15 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-20T12:49:52.832Z",
+  "updatedAt": "2026-07-20T13:08:45.840Z",
   "entries": [
     {
-      "id": "mrt8236iea7jcl",
-      "title": "张三",
-      "type": "anime",
+      "id": "mrt8hyyk9k4et8",
+      "title": "卢星宇",
+      "type": "movie",
       "status": "watching",
-      "rating": 4,
-      "notes": "",
-      "createdAt": "2026-07-20T12:49:46.650Z"
+      "rating": 0,
+      "notes": "11111",
+      "createdAt": "2026-07-20T13:02:07.676Z"
     }
   ]
 }
