@@ -921,24 +921,20 @@ class AniListApp {
     const typeIcon = TYPE_ICONS[entry.type] || 'film';
     const typeColors = { anime: '#f472b6', drama: '#60a5fa', movie: '#f59e0b' };
     const typeColor = typeColors[entry.type] || '#a855f7';
-    const typeClasses = { anime: 'type-anime', drama: 'type-drama', movie: 'type-movie' };
-    const typeClass = typeClasses[entry.type] || 'type-anime';
 
     return `
       <div class="card" data-id="${entry.id}" style="animation-delay: ${index * 0.04}s">
         <div class="card-header">
           <div class="card-type-badge" style="background: ${typeColor}18; color: ${typeColor}">
             <i class="fa-solid fa-${typeIcon}"></i>
+            <span class="card-type-badge-text">${TYPE_LABELS[entry.type] || entry.type}</span>
           </div>
           <div class="card-title">${this.escapeHtml(entry.title)}</div>
           <button class="card-delete-btn header-btn" title="删除" style="flex-shrink:0">
             <i class="fa-regular fa-trash-can"></i>
           </button>
         </div>
-        <div class="card-tags">
-          <span class="card-type-label ${typeClass}">
-            <i class="fa-solid fa-${typeIcon}"></i> ${TYPE_LABELS[entry.type] || entry.type}
-          </span>
+        <div>
           <span class="card-status ${STATUS_CLASSES[entry.status] || ''}">
             ${STATUS_LABELS[entry.status] || entry.status}
           </span>
