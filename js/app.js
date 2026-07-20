@@ -885,8 +885,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // 初始化本地数据存储
   AnimeDB.init();
 
-  // 加载 GitHub 配置
-  const cfg = AnimeDB.getGitHubConfig();
+  // 加载 GitHub 配置（优先用已保存的，没有则用全局默认值）
+  let cfg = AnimeDB.getGitHubConfig();
+  const defaultToken = typeof GITHUB_DEFAULT_TOKEN !== 'undefined' ? GITHUB_DEFAULT_TOKEN : '';
+  const defaultRepo = typeof GITHUB_DEFAULT_REPO !== 'undefined' ? GITHUB_DEFAULT_REPO : '';
+
+  if (!cfg && defaultToken) {
+    // 首次使用，自动填入全局默认值
+    AnimeDB.saveGitHubConfig({ token: defaultToken, repo: defaultRepo });
+    cfg = AnimeDB.getGitHubConfig();
+  }
+
   if (cfg) {
     document.getElementById('githubToken').value = cfg.token || '';
     document.getElementById('githubRepo').value = cfg.repo || '';
@@ -909,11 +918,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (githubBtn && githubModal) {
     const openGithubModal = () => {
-      const c = AnimeDB.getGitHubConfig();
-      if (c) {
-        document.getElementById('githubToken').value = c.token || '';
-        document.getElementById('githubRepo').value = c.repo || '';
+      let c = AnimeDB.getGitHubConfig();
+      // 如果本地没有配置，用全局默认值兜底
+      if (!c && defaultToken) {
+        AnimeDB.saveGitHubConfig({ token: defaultToken, repo: defaultRepo });
+        c = AnimeDB.getGitHubConfig();
       }
+      document.getElementById('githubToken').value = c ? c.token : (defaultToken || '');
+      document.getElementById('githubRepo').value = c ? c.repo : (defaultRepo || '');
       githubModal.classList.add('open');
       document.body.style.overflow = 'hidden';
     };
