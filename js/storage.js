@@ -1,70 +1,60 @@
 /**
- * AnimeDB - 支持 Firebase 云同步的数据存储层
- * 数据优先存内存缓存 → localStorage 备份 → Firebase 云端
- * 跨设备实时同步，离线不丢数据
+ * AnimeDB - Cloudflare Worker 云同步数据存储层
+ * 数据优先存本地（内存+localStorage），后台同步到 Cloudflare KV
+ * 离线下完全可用，联网后自动同步
  */
+
+const SYNC_STATUS = {
+  LOCAL: 'local',
+  SYNCING: 'syncing',
+  CONNECTED: 'connected',
+  ERROR: 'error',
+};
+
 class AnimeDB {
   static STORAGE_KEY = 'anilist_entries';
   static DEFAULT_DATA = [];
 
-  /** 内存缓存，读写均走这里（同步） */
+  /** 内存缓存（同步读写） */
   static _cache = null;
-  /** Firebase 数据库引用 */
-  static _dbRef = null;
-  /** 同步状态变化回调 */
+  /** Worker API 地址 */
+  static _apiUrl = '';
+  /** 同步状态回调 */
   static _syncListeners = [];
-  /** 当前同步状态 */
-  static _syncStatus = 'local'; // 'local' | 'syncing' | 'connected' | 'error'
+  /** 当前状态 */
+  static _syncStatus = SYNC_STATUS.LOCAL;
+  /** 是否正在同步中（防重入） */
+  static _syncing = false;
 
   // ===== 初始化 =====
-  static async init(config) {
-    // 1. 从 localStorage 加载（瞬间完成）
+  static async init(apiUrl) {
+    this._apiUrl = apiUrl;
     this._loadCache();
+    this._setStatus(SYNC_STATUS.SYNCING);
 
-    // 2. 初始化 Firebase
+    // 从云端拉取数据
     try {
-      const app = firebase.initializeApp(config);
-      this._dbRef = firebase.database().ref('entries');
-      this._setStatus('syncing');
-
-      // 3. 一次性加载远端数据合并
-      const snapshot = await this._dbRef.once('value');
-      const fbData = snapshot.val();
-      if (fbData) {
-        this._mergeEntries(Object.values(fbData));
+      const res = await fetch(`${apiUrl}/entries`);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const cloudData = await res.json();
+      if (cloudData && typeof cloudData === 'object') {
+        this._mergeEntries(Object.values(cloudData));
       }
-
-      this._setStatus('connected');
-
-      // 4. 监听实时变更（来自其他设备/浏览器）
-      this._dbRef.on('value', (snap) => {
-        const data = snap.val();
-        if (!data) return;
-        const fbEntries = Object.values(data);
-        const sortedLocal = [...this._cache].sort((a, b) => (a.id || '').localeCompare(b.id || ''));
-        const sortedFb = fbEntries.sort((a, b) => (a.id || '').localeCompare(b.id || ''));
-        const localStr = JSON.stringify(sortedLocal);
-        const fbStr = JSON.stringify(sortedFb);
-        if (localStr !== fbStr) {
-          this._cache = fbEntries;
-          this._saveLocal();
-          this._notify();
-        }
-      });
+      this._setStatus(SYNC_STATUS.CONNECTED);
     } catch (e) {
-      console.warn('Firebase 初始化失败，仅使用本地数据:', e);
-      this._setStatus('error');
+      console.warn('云端同步失败，使用本地数据:', e.message);
+      this._setStatus(SYNC_STATUS.ERROR);
     }
   }
 
-  /** 合并远端数据到本地缓存（去重） */
+  /** 合并云端数据到本地 */
   static _mergeEntries(entries) {
     const idMap = new Map();
     this._cache.forEach(e => idMap.set(e.id, e));
     let changed = false;
     for (const entry of entries) {
-      const existing = idMap.get(entry.id);
-      if (!existing) {
+      if (!entry || !entry.id) continue;
+      if (!idMap.has(entry.id)) {
         this._cache.unshift(entry);
         changed = true;
       }
@@ -90,19 +80,58 @@ class AnimeDB {
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this._cache));
   }
 
-  /** 单条数据同步到 Firebase */
-  static _syncEntry(entry) {
-    if (this._dbRef) {
-      this._dbRef.child(entry.id).set(entry)
-        .catch(e => console.warn('Firebase 同步失败:', e));
+  // ===== 云端写入（异步） =====
+  static async _cloudAdd(entry) {
+    try {
+      await fetch(`${this._apiUrl}/entries`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
+      });
+    } catch (e) {
+      console.warn('云端添加失败:', e.message);
     }
   }
 
-  /** 删除 Firebase 上的条目 */
-  static _removeFromFirebase(id) {
-    if (this._dbRef) {
-      this._dbRef.child(id).remove()
-        .catch(e => console.warn('Firebase 删除失败:', e));
+  static async _cloudUpdate(id, entry) {
+    try {
+      await fetch(`${this._apiUrl}/entries/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
+      });
+    } catch (e) {
+      console.warn('云端更新失败:', e.message);
+    }
+  }
+
+  static async _cloudDelete(id) {
+    try {
+      await fetch(`${this._apiUrl}/entries/${id}`, { method: 'DELETE' });
+    } catch (e) {
+      console.warn('云端删除失败:', e.message);
+    }
+  }
+
+  static async _cloudReplace(entries) {
+    try {
+      const obj = {};
+      entries.forEach(e => { obj[e.id] = e; });
+      await fetch(`${this._apiUrl}/entries`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(obj),
+      });
+    } catch (e) {
+      console.warn('云端全量替换失败:', e.message);
+    }
+  }
+
+  static async _cloudClear() {
+    try {
+      await fetch(`${this._apiUrl}/entries`, { method: 'DELETE' });
+    } catch (e) {
+      console.warn('云端清空失败:', e.message);
     }
   }
 
@@ -133,13 +162,9 @@ class AnimeDB {
   }
 
   // ===== 读取 =====
-  static getAll() {
-    return [...this._cache];
-  }
+  static getAll() { return [...this._cache]; }
 
-  static getById(id) {
-    return this._cache.find(e => e.id === id) || null;
-  }
+  static getById(id) { return this._cache.find(e => e.id === id) || null; }
 
   static search({ query = '', type = 'all', status = 'all' } = {}) {
     let data = this._cache;
@@ -151,18 +176,16 @@ class AnimeDB {
   }
 
   static getStats() {
-    const data = this._cache;
     return {
-      all: data.length,
-      watching: data.filter(e => e.status === 'watching').length,
-      want_to_watch: data.filter(e => e.status === 'want_to_watch').length,
-      completed: data.filter(e => e.status === 'completed').length,
-      on_hold: data.filter(e => e.status === 'on_hold').length,
+      all: this._cache.length,
+      watching: this._cache.filter(e => e.status === 'watching').length,
+      want_to_watch: this._cache.filter(e => e.status === 'want_to_watch').length,
+      completed: this._cache.filter(e => e.status === 'completed').length,
+      on_hold: this._cache.filter(e => e.status === 'on_hold').length,
     };
   }
 
   // ===== 写入 =====
-
   static add({ title, type = 'anime', status = 'want_to_watch', rating = 0, notes = '' }) {
     const entry = {
       id: this._genId(),
@@ -175,7 +198,7 @@ class AnimeDB {
     };
     this._cache.unshift(entry);
     this._saveLocal();
-    this._syncEntry(entry);
+    this._cloudAdd(entry);
     return entry;
   }
 
@@ -193,7 +216,7 @@ class AnimeDB {
       }
     }
     this._saveLocal();
-    this._syncEntry(this._cache[idx]);
+    this._cloudUpdate(id, this._cache[idx]);
     return this._cache[idx];
   }
 
@@ -202,18 +225,17 @@ class AnimeDB {
     if (idx === -1) return false;
     this._cache.splice(idx, 1);
     this._saveLocal();
-    this._removeFromFirebase(id);
+    this._cloudDelete(id);
     return true;
   }
 
-  // ===== 撤销删除：用原始 ID 恢复条目 =====
+  // ===== 撤销删除 =====
   static undoAdd(entry) {
     if (!entry || !entry.id) return null;
-    const exists = this._cache.some(e => e.id === entry.id);
-    if (exists) return entry;
+    if (this._cache.some(e => e.id === entry.id)) return entry;
     this._cache.unshift(entry);
     this._saveLocal();
-    this._syncEntry(entry);
+    this._cloudAdd(entry);
     return entry;
   }
 
@@ -222,7 +244,7 @@ class AnimeDB {
     return JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), entries: this._cache }, null, 2);
   }
 
-  // ===== 导入（同时写入云端）=====
+  // ===== 导入 =====
   static importData(jsonStr) {
     let parsed;
     try { parsed = JSON.parse(jsonStr); } catch { throw new Error('JSON 格式错误'); }
@@ -243,12 +265,7 @@ class AnimeDB {
     }));
     this._cache = entries;
     this._saveLocal();
-    // 全量同步到 Firebase
-    if (this._dbRef) {
-      const obj = {};
-      entries.forEach(e => { obj[e.id] = e; });
-      this._dbRef.set(obj).catch(e => console.warn('Firebase 导入同步失败:', e));
-    }
+    this._cloudReplace(entries);
     return entries.length;
   }
 
@@ -256,8 +273,6 @@ class AnimeDB {
   static reset() {
     this._cache = [];
     localStorage.removeItem(this.STORAGE_KEY);
-    if (this._dbRef) {
-      this._dbRef.set(null).catch(e => console.warn('Firebase 重置失败:', e));
-    }
+    this._cloudClear();
   }
 }

@@ -858,28 +858,28 @@ function updateSyncUI(status) {
   const text = document.getElementById('syncText');
   if (!el || !text) return;
 
-  // 移除旧状态
   el.classList.remove('sync-local', 'sync-syncing', 'sync-connected', 'sync-error');
 
+  const icon = el.querySelector('i');
   switch (status) {
-    case 'local':
+    case SYNC_STATUS.LOCAL:
       el.classList.add('sync-local');
-      el.querySelector('i').className = 'fa-solid fa-cloud-slash';
+      icon.className = 'fa-solid fa-cloud-slash';
       text.textContent = '本地模式';
       break;
-    case 'syncing':
+    case SYNC_STATUS.SYNCING:
       el.classList.add('sync-syncing');
-      el.querySelector('i').className = 'fa-solid fa-cloud-arrow-up';
+      icon.className = 'fa-solid fa-cloud-arrow-up';
       text.textContent = '同步中…';
       break;
-    case 'connected':
+    case SYNC_STATUS.CONNECTED:
       el.classList.add('sync-connected');
-      el.querySelector('i').className = 'fa-solid fa-cloud-check';
+      icon.className = 'fa-solid fa-cloud-check';
       text.textContent = '已同步';
       break;
-    case 'error':
+    case SYNC_STATUS.ERROR:
       el.classList.add('sync-error');
-      el.querySelector('i').className = 'fa-solid fa-cloud-exclamation';
+      icon.className = 'fa-solid fa-cloud-exclamation';
       text.textContent = '同步失败';
       break;
   }
@@ -890,14 +890,11 @@ function updateSyncUI(status) {
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 初始化云同步（不阻塞 UI）
-  if (typeof FIREBASE_CONFIG !== 'undefined') {
-    // 注册同步回调
-    AnimeDB.onSync((status) => {
-      updateSyncUI(status);
-    });
-    // 异步初始化，不阻塞渲染
-    AnimeDB.init(FIREBASE_CONFIG);
+  // 初始化云同步
+  const apiUrl = (typeof WORKER_API !== 'undefined') ? WORKER_API : '';
+  if (apiUrl) {
+    AnimeDB.onSync((status) => { updateSyncUI(status); });
+    AnimeDB.init(apiUrl);
   } else {
     updateSyncUI('local');
   }

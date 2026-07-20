@@ -215,21 +215,10 @@
     <span id="syncText">同步中…</span>
   </div>
 
-  <!-- ===== Firebase SDK ===== -->
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
-
-  <!-- ===== Firebase 配置 ===== -->
+  <!-- ===== 云端 Worker API 配置 ===== -->
   <script>
-    const FIREBASE_CONFIG = {
-      apiKey: "AIzaSyBv6zGcdKa84rWO2yrYTkS-VD4Ffa-2sCg",
-      authDomain: "jiju-906f6.firebaseapp.com",
-      databaseURL: "https://jiju-906f6-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "jiju-906f6",
-      storageBucket: "jiju-906f6.firebasestorage.app",
-      messagingSenderId: "676830039858",
-      appId: "1:676830039858:web:720586e029b2e20d8cd12b"
-    };
+    // ⚡ 部署 Worker 后把下面链接换成你的 Worker 地址
+    const WORKER_API = 'https://你的-worker-名称.你的用户名.workers.dev';
   </script>
 
   <!-- ===== JS ===== -->
