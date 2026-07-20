@@ -66,7 +66,7 @@ class AnimeDB {
     }
 
     const data = await res.json();
-    const content = atob(data.content);
+    const content = decodeURIComponent(escape(atob(data.content)));
     const remote = JSON.parse(content);
     const entries = Array.isArray(remote) ? remote : (remote.entries || []);
 
