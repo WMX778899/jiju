@@ -347,6 +347,110 @@ class ParticleBackground {
 }
 
 // ============================================================
+// 背景动漫剪影
+// ============================================================
+
+const ANIME_SILHOUETTES = [
+  // 1. 🍖 草帽（路飞）
+  `<svg viewBox="0 0 120 100" fill="currentColor">
+    <ellipse cx="60" cy="82" rx="56" ry="12"/>
+    <path d="M22,76 Q22,35 60,25 Q98,35 98,76"/>
+  </svg>`,
+  // 2. ⚡ 赛亚人发型 + 光环（悟空）
+  `<svg viewBox="0 0 100 120" fill="currentColor">
+    <circle cx="50" cy="60" r="26"/>
+    <polygon points="50,0 52,22 72,10 60,28 88,22 66,38 92,42 68,52 90,65 68,62 64,80 56,68 44,80 36,62 22,65 42,52 28,42 52,38 40,28 22,22 48,28 40,10 52,22"/>
+    <circle cx="50" cy="12" r="18" fill="none" stroke="currentColor" stroke-width="4" opacity="0.5"/>
+  </svg>`,
+  // 3. ⚡ 皮卡丘
+  `<svg viewBox="0 0 100 100" fill="currentColor">
+    <ellipse cx="50" cy="60" rx="32" ry="28"/>
+    <polygon points="20,36 5,2 32,28"/>
+    <polygon points="80,36 95,2 68,28"/>
+    <polygon points="20,28 12,10 28,24"/>
+    <polygon points="80,28 88,10 72,24"/>
+  </svg>`,
+  // 4. 🌙 水手月亮（丸子头 + 月）
+  `<svg viewBox="0 0 100 110" fill="currentColor">
+    <ellipse cx="50" cy="55" rx="24" ry="30"/>
+    <circle cx="20" cy="32" r="16"/>
+    <circle cx="80" cy="32" r="16"/>
+    <path d="M58,8 A35,35 0 1,0 58,78 A28,35 0 1,1 58,8" opacity="0.4"/>
+  </svg>`,
+  // 5. 🌀 手里剑（火影）
+  `<svg viewBox="0 0 100 100" fill="currentColor">
+    <polygon points="50,2 54,46 98,50 54,54 50,98 46,54 2,50 46,46"/>
+    <circle cx="50" cy="50" r="8" fill="var(--bg-primary)"/>
+  </svg>`,
+  // 6. 🐱 猫耳（动漫萌系）
+  `<svg viewBox="0 0 100 100" fill="currentColor">
+    <ellipse cx="50" cy="60" rx="34" ry="30"/>
+    <polygon points="20,40 28,8 42,36"/>
+    <polygon points="80,40 72,8 58,36"/>
+    <ellipse cx="50" cy="68" rx="10" ry="6"/>
+  </svg>`,
+  // 7. 🎀 蝴蝶结（魔法少女）
+  `<svg viewBox="0 0 100 80" fill="currentColor">
+    <path d="M50,40 Q20,10 10,30 Q5,50 50,40"/>
+    <path d="M50,40 Q80,10 90,30 Q95,50 50,40"/>
+    <ellipse cx="50" cy="40" rx="6" ry="8"/>
+    <path d="M48,48 L42,72 M52,48 L58,72" stroke="currentColor" stroke-width="3" fill="none"/>
+  </svg>`,
+  // 8. 🐉 龙珠
+  `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2.5">
+    <circle cx="50" cy="50" r="44"/>
+    <circle cx="50" cy="50" r="8" fill="currentColor"/>
+    <circle cx="50" cy="50" r="4" fill="var(--bg-primary)"/>
+    <circle cx="26" cy="30" r="5" fill="currentColor"/>
+    <circle cx="74" cy="30" r="5" fill="currentColor"/>
+    <circle cx="26" cy="70" r="5" fill="currentColor"/>
+    <circle cx="74" cy="70" r="5" fill="currentColor"/>
+  </svg>`,
+];
+
+const ANIME_FLOAT_ANIMS = ['silhouetteFloat', 'silhouetteFloat2', 'silhouetteFloat3'];
+const ANIME_COLORS = ['#a855f7', '#ec4899', '#c084fc', '#f59e0b', '#60a5fa', '#f472b6'];
+
+function createAnimeSilhouettes() {
+  // 检查容器是否已存在
+  if (document.querySelector('.anime-bg-container')) return;
+
+  const container = document.createElement('div');
+  container.className = 'anime-bg-container';
+
+  const count = 10;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  for (let i = 0; i < count; i++) {
+    const idx = i % ANIME_SILHOUETTES.length;
+    const size = 80 + Math.random() * 180;
+    const x = Math.random() * (w + 200) - 100;
+    const y = Math.random() * (h + 200) - 100;
+    const dur = 20 + Math.random() * 25;
+    const delay = Math.random() * 15;
+    const anim = ANIME_FLOAT_ANIMS[i % ANIME_FLOAT_ANIMS.length];
+    const color = ANIME_COLORS[i % ANIME_COLORS.length];
+    const opacity = 0.03 + Math.random() * 0.05;
+
+    const el = document.createElement('div');
+    el.className = 'anime-bg-silhouette';
+    el.innerHTML = ANIME_SILHOUETTES[idx];
+    el.style.cssText = `
+      left: ${x}px; top: ${y}px;
+      width: ${size}px; height: ${size}px;
+      color: ${color};
+      opacity: ${opacity};
+      animation: ${anim} ${dur}s ease-in-out ${delay}s infinite;
+      filter: blur(${0.5 + Math.random() * 1.5}px);
+    `;
+    container.appendChild(el);
+  }
+
+  document.body.appendChild(container);
+}
+
+// ============================================================
 // 主应用
 // ============================================================
 
@@ -364,6 +468,7 @@ class AniListApp {
     this.pendingDeletes = {};
 
     this.initParticleBg();
+    this.initAnimeBg();
     this.initGlowCursor();
     this.cacheDom();
     this.bindEvents();
@@ -379,6 +484,10 @@ class AniListApp {
 
   initGlowCursor() {
     createGlowCursor();
+  }
+
+  initAnimeBg() {
+    createAnimeSilhouettes();
   }
 
   cacheDom() {
