@@ -1,15 +1,393 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-20T13:13:38.299Z",
+  "updatedAt": "2026-07-20T13:42:44.079766Z",
   "entries": [
     {
-      "id": "mrt8wnzwhxrkwr",
-      "title": "卢星宇",
+      "id": "000037rvthzf26",
+      "title": "零之使魔",
       "type": "anime",
-      "status": "watching",
-      "rating": 5,
+      "status": "want_to_watch",
+      "rating": 0,
       "notes": "",
-      "createdAt": "2026-07-20T13:13:33.308Z"
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvs7x08n",
+      "title": "进击的巨人",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvnpmc28",
+      "title": "甘城光辉游乐园",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvcc7t3o",
+      "title": "黄昏少女",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvo8i3so",
+      "title": "更衣人偶坠入爱河",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv99gcxv",
+      "title": "东京复仇者",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvj5up4e",
+      "title": "物理魔法使",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv6r1wo6",
+      "title": "在异世界咏唱恋曲的少女",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv7lvq2r",
+      "title": "虚构推理",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv7i5sm2",
+      "title": "让我聆听爱的歌声",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv9pqx5r",
+      "title": "奇蛋物语",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvfdfqnu",
+      "title": "笨女孩",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvnbc8fh",
+      "title": "甲贺忍法帖",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv5rqlkx",
+      "title": "秒杀外挂",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvwcu7ob",
+      "title": "若与你共乘海浪之上",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvpr243c",
+      "title": "电锯人",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvfeagvk",
+      "title": "地狱乐",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvcrx8az",
+      "title": "至暗时刻",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvqdf05t",
+      "title": "我叫白小飞",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvigpvxq",
+      "title": "中国惊奇先生",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv8fxd0a",
+      "title": "唐人街探案电视剧",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv89zezb",
+      "title": "命运石之门",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvem912f",
+      "title": "死亡笔记",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvwrcs2z",
+      "title": "重启咲良田",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvx0u1i8",
+      "title": "哑舍",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv9zhpov",
+      "title": "边缘行者",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv9axfy7",
+      "title": "吞噬星空",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvag78bv",
+      "title": "遮天",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvohscf9",
+      "title": "凡人修仙传",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv6miez8",
+      "title": "沧元图",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvchqjep",
+      "title": "剪开",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv1c6ulz",
+      "title": "斩神",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvrixine",
+      "title": "一念永恒",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv87rdoc",
+      "title": "游戏人生",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv9up1cc",
+      "title": "非自然死亡",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv6x5qao",
+      "title": "碧蓝之海第二季",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv34gvvn",
+      "title": "终末的女武神",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvmf2bd5",
+      "title": "雾山五行",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv19xr2v",
+      "title": "龙族",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv8aprzd",
+      "title": "爱死亡",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvzdbc3r",
+      "title": "绅士们",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rveeywe7",
+      "title": "七大罪",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rv3gwnu6",
+      "title": "满江红",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
     }
   ]
 }
