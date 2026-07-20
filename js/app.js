@@ -71,6 +71,62 @@ function showToast(message, type = 'success') {
   setTimeout(() => toast.remove(), 3000);
 }
 
+/** 撤销 Toast 定时器管理 */
+const _undoTimers = new Map();
+
+/**
+ * 显示带撤销按钮的 Toast
+ * @param {string} entryId - 被删除条目的 ID
+ * @param {Function} onUndo - 点击撤销时的回调
+ * @param {Function} onExpire - 超时未撤销时的清理回调
+ */
+function showUndoToast(entryId, onUndo, onExpire) {
+  // 清除之前的同名定时器
+  if (_undoTimers.has(entryId)) {
+    clearTimeout(_undoTimers.get(entryId));
+    _undoTimers.delete(entryId);
+  }
+
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast undo-toast';
+
+  const msg = document.createElement('span');
+  msg.textContent = '已删除 ';
+  msg.className = 'undo-msg';
+
+  const btn = document.createElement('button');
+  btn.className = 'undo-btn';
+  btn.textContent = '撤销';
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    onUndo(entryId);
+    removeUndoToast(toast, entryId);
+  });
+
+  toast.appendChild(msg);
+  toast.appendChild(btn);
+  container.appendChild(toast);
+
+  // 5秒后自动消失
+  const timer = setTimeout(() => {
+    removeUndoToast(toast, entryId);
+    if (onExpire) onExpire(entryId);
+  }, 5000);
+  _undoTimers.set(entryId, timer);
+}
+
+function removeUndoToast(toast, entryId) {
+  if (_undoTimers.has(entryId)) {
+    clearTimeout(_undoTimers.get(entryId));
+    _undoTimers.delete(entryId);
+  }
+  if (toast.parentNode) {
+    toast.classList.add('toast-out');
+    setTimeout(() => toast.remove(), 250);
+  }
+}
+
 // ============================================================
 // 鼠标光晕跟随
 // ============================================================
@@ -304,6 +360,8 @@ class AniListApp {
     this.currentSort = 'newest';
     this.searchQuery = '';
     this.prevStats = { all: 0, watching: 0, want_to_watch: 0, completed: 0, on_hold: 0 };
+    /** 待撤销的删除记录 { id -> entryData } */
+    this.pendingDeletes = {};
 
     this.initParticleBg();
     this.initGlowCursor();
@@ -578,17 +636,44 @@ class AniListApp {
 
   handleDelete() {
     if (!this.deletingId) return;
+
+    const entry = AnimeDB.getById(this.deletingId);
+    if (!entry) { this.deletingId = null; return; }
+
+    // 保存完整数据用于可能的撤销
+    this.pendingDeletes[this.deletingId] = { ...entry };
+
     // 卡片淡出动画
     const card = this.listContainer.querySelector(`.card[data-id="${this.deletingId}"]`);
     if (card) card.classList.add('removing');
 
     setTimeout(() => {
-      AnimeDB.delete(this.deletingId);
+      const id = this.deletingId;
+      AnimeDB.delete(id);
       this.deletingId = null;
       this.closeModal(this.deleteModal);
-      showToast('已删除 🗑️');
+      // 显示带撤销的 Toast
+      showUndoToast(
+        id,
+        (undoId) => this.handleUndoDelete(undoId),
+        (expiredId) => { delete this.pendingDeletes[expiredId]; }
+      );
       this.render();
     }, 250);
+  }
+
+  /** 撤销删除 */
+  handleUndoDelete(id) {
+    const data = this.pendingDeletes[id];
+    if (!data) {
+      showToast('已无法撤销', 'error');
+      return;
+    }
+    delete this.pendingDeletes[id];
+    // 用原始 ID 重新添加
+    AnimeDB.undoAdd(data);
+    showToast('已恢复 ↩️');
+    this.render();
   }
 
   // ===== 导出 =====

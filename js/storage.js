@@ -45,6 +45,18 @@ class AnimeDB {
     return entry;
   }
 
+  // ===== 撤销删除：用原始 ID 恢复条目 =====
+  static undoAdd(entry) {
+    if (!entry || !entry.id) return null;
+    const data = AnimeDB.getAll();
+    // 检查是否已存在相同 ID（避免重复恢复）
+    const exists = data.some(e => e.id === entry.id);
+    if (exists) return entry;
+    data.unshift(entry);
+    AnimeDB._save(data);
+    return entry;
+  }
+
   // ===== 根据 ID 获取 =====
   static getById(id) {
     return AnimeDB.getAll().find(e => e.id === id) || null;
