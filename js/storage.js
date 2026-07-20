@@ -4,6 +4,21 @@
  * 备份：GitHub API（手动/自动同步到仓库 data.json）
  */
 
+/** UTF-8 安全的 base64 编码（支持中文） */
+function _utf8ToBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+function _base64ToUtf8(base64) {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
 class AnimeDB {
   static STORAGE_KEY = 'anilist_entries';
   static DEFAULT_DATA = [];
@@ -65,29 +80,19 @@ class AnimeDB {
       throw new Error(`GitHub API 错误: ${res.status}`);
     }
 
-    const data = await res.json();
-    const content = decodeURIComponent(escape(atob(data.content)));
+    const d = await res.json();
+    const content = _base64ToUtf8(d.content);
     const remote = JSON.parse(content);
     const entries = Array.isArray(remote) ? remote : (remote.entries || []);
 
-    // 合并到本地缓存（去重）
+    // 直接用云端数据替换本地（覆盖模式）
     if (entries.length > 0) {
-      const idMap = new Map();
-      this._cache.forEach(e => idMap.set(e.id, e));
-      let changed = false;
-      for (const entry of entries) {
-        if (entry && entry.id && !idMap.has(entry.id)) {
-          this._cache.unshift(entry);
-          changed = true;
-        }
-      }
-      if (changed) {
-        this._saveLocal();
-        this._notify();
-      }
+      this._cache = entries;
+      this._saveLocal();
+      this._notify();
     }
 
-    return { count: entries.length, sha: data.sha };
+    return { count: entries.length, sha: d.sha };
   }
 
   /** 上传数据到 GitHub */
@@ -96,9 +101,9 @@ class AnimeDB {
     if (!cfg || !cfg.token || !cfg.repo) throw new Error('未配置 GitHub');
 
     const [owner, repo] = cfg.repo.split('/');
-    const content = btoa(unescape(encodeURIComponent(
+    const content = _utf8ToBase64(
       JSON.stringify({ version: 1, updatedAt: new Date().toISOString(), entries: this._cache }, null, 2)
-    )));
+    );
 
     // 先尝试获取已有文件的 sha
     let sha = cfg._sha;
