@@ -1,15 +1,15 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-20T13:08:45.840Z",
+  "updatedAt": "2026-07-20T13:13:38.299Z",
   "entries": [
     {
-      "id": "mrt8hyyk9k4et8",
+      "id": "mrt8wnzwhxrkwr",
       "title": "卢星宇",
-      "type": "movie",
+      "type": "anime",
       "status": "watching",
-      "rating": 0,
-      "notes": "11111",
-      "createdAt": "2026-07-20T13:02:07.676Z"
+      "rating": 5,
+      "notes": "",
+      "createdAt": "2026-07-20T13:13:33.308Z"
     }
   ]
 }
