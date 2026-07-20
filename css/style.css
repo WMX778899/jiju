@@ -626,6 +626,49 @@ body {
   padding-top: 4px;
 }
 
+/* 卡片标签行 */
+.card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* 卡片类型标签 */
+.card-type-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid;
+  letter-spacing: 0.3px;
+}
+
+.card-type-label i {
+  font-size: 10px;
+}
+
+.type-anime {
+  background: rgba(244, 114, 182, 0.1);
+  color: var(--anime-color);
+  border-color: rgba(244, 114, 182, 0.25);
+}
+
+.type-drama {
+  background: rgba(96, 165, 250, 0.1);
+  color: var(--drama-color);
+  border-color: rgba(96, 165, 250, 0.25);
+}
+
+.type-movie {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--movie-color);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
 /* 卡片状态标签 */
 .card-status {
   display: inline-flex;
