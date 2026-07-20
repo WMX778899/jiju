@@ -1,71 +1,24 @@
 /**
- * AnimeDB - Cloudflare Worker 云同步数据存储层
- * 数据优先存本地（内存+localStorage），后台同步到 Cloudflare KV
- * 离线下完全可用，联网后自动同步
+ * AnimeDB - localStorage 数据存储层 + GitHub API 云备份
+ * 主存：localStorage（即时响应，离线可用）
+ * 备份：GitHub API（手动/自动同步到仓库 data.json）
  */
-
-const SYNC_STATUS = {
-  LOCAL: 'local',
-  SYNCING: 'syncing',
-  CONNECTED: 'connected',
-  ERROR: 'error',
-};
 
 class AnimeDB {
   static STORAGE_KEY = 'anilist_entries';
   static DEFAULT_DATA = [];
 
-  /** 内存缓存（同步读写） */
+  /** 内存缓存 */
   static _cache = null;
-  /** Worker API 地址 */
-  static _apiUrl = '';
   /** 同步状态回调 */
   static _syncListeners = [];
-  /** 当前状态 */
-  static _syncStatus = SYNC_STATUS.LOCAL;
-  /** 是否正在同步中（防重入） */
-  static _syncing = false;
+  static _syncStatus = 'local';
 
   // ===== 初始化 =====
-  static async init(apiUrl) {
-    this._apiUrl = apiUrl;
+  static init() {
     this._loadCache();
-    this._setStatus(SYNC_STATUS.SYNCING);
-
-    // 从云端拉取数据
-    try {
-      const res = await fetch(`${apiUrl}/entries`);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const cloudData = await res.json();
-      if (cloudData && typeof cloudData === 'object') {
-        this._mergeEntries(Object.values(cloudData));
-      }
-      this._setStatus(SYNC_STATUS.CONNECTED);
-    } catch (e) {
-      console.warn('云端同步失败，使用本地数据:', e.message);
-      this._setStatus(SYNC_STATUS.ERROR);
-    }
   }
 
-  /** 合并云端数据到本地 */
-  static _mergeEntries(entries) {
-    const idMap = new Map();
-    this._cache.forEach(e => idMap.set(e.id, e));
-    let changed = false;
-    for (const entry of entries) {
-      if (!entry || !entry.id) continue;
-      if (!idMap.has(entry.id)) {
-        this._cache.unshift(entry);
-        changed = true;
-      }
-    }
-    if (changed) {
-      this._saveLocal();
-      this._notify();
-    }
-  }
-
-  /** 从 localStorage 加载到缓存 */
   static _loadCache() {
     try {
       const raw = localStorage.getItem(this.STORAGE_KEY);
@@ -75,85 +28,132 @@ class AnimeDB {
     }
   }
 
-  /** 缓存写回 localStorage */
   static _saveLocal() {
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this._cache));
   }
 
-  // ===== 云端写入（异步） =====
-  static async _cloudAdd(entry) {
+  // ===== GitHub 同步配置 =====
+  static GITHUB_CONFIG_KEY = 'anilist_github_config';
+
+  static getGitHubConfig() {
     try {
-      await fetch(`${this._apiUrl}/entries`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entry),
-      });
-    } catch (e) {
-      console.warn('云端添加失败:', e.message);
-    }
+      const raw = localStorage.getItem(this.GITHUB_CONFIG_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
   }
 
-  static async _cloudUpdate(id, entry) {
-    try {
-      await fetch(`${this._apiUrl}/entries/${id}`, {
+  static saveGitHubConfig(config) {
+    localStorage.setItem(this.GITHUB_CONFIG_KEY, JSON.stringify(config));
+  }
+
+  static clearGitHubConfig() {
+    localStorage.removeItem(this.GITHUB_CONFIG_KEY);
+  }
+
+  /** 从 GitHub 拉取数据（合并到本地） */
+  static async pullFromGitHub() {
+    const cfg = this.getGitHubConfig();
+    if (!cfg || !cfg.token || !cfg.repo) throw new Error('未配置 GitHub');
+
+    const [owner, repo] = cfg.repo.split('/');
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
+      { headers: { Authorization: `Bearer ${cfg.token}` } }
+    );
+    if (!res.ok) {
+      if (res.status === 404) throw new Error('仓库中还没有 data.json，请先上传');
+      throw new Error(`GitHub API 错误: ${res.status}`);
+    }
+
+    const data = await res.json();
+    const content = atob(data.content);
+    const remote = JSON.parse(content);
+    const entries = Array.isArray(remote) ? remote : (remote.entries || []);
+
+    // 合并到本地缓存（去重）
+    if (entries.length > 0) {
+      const idMap = new Map();
+      this._cache.forEach(e => idMap.set(e.id, e));
+      let changed = false;
+      for (const entry of entries) {
+        if (entry && entry.id && !idMap.has(entry.id)) {
+          this._cache.unshift(entry);
+          changed = true;
+        }
+      }
+      if (changed) {
+        this._saveLocal();
+        this._notify();
+      }
+    }
+
+    return { count: entries.length, sha: data.sha };
+  }
+
+  /** 上传数据到 GitHub */
+  static async pushToGitHub() {
+    const cfg = this.getGitHubConfig();
+    if (!cfg || !cfg.token || !cfg.repo) throw new Error('未配置 GitHub');
+
+    const [owner, repo] = cfg.repo.split('/');
+    const content = btoa(unescape(encodeURIComponent(
+      JSON.stringify({ version: 1, updatedAt: new Date().toISOString(), entries: this._cache }, null, 2)
+    )));
+
+    // 先尝试获取已有文件的 sha
+    let sha = cfg._sha;
+    if (!sha) {
+      try {
+        const check = await fetch(
+          `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
+          { headers: { Authorization: `Bearer ${cfg.token}` } }
+        );
+        if (check.ok) {
+          const existing = await check.json();
+          sha = existing.sha;
+          cfg._sha = sha;
+          this.saveGitHubConfig(cfg);
+        }
+      } catch { /* 文件不存在，走新建 */ }
+    }
+
+    const body = {
+      message: `📝 AniList 数据同步 ${new Date().toLocaleString('zh-CN')}`,
+      content,
+    };
+    if (sha) body.sha = sha;
+
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
+      {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entry),
-      });
-    } catch (e) {
-      console.warn('云端更新失败:', e.message);
-    }
-  }
+        headers: {
+          Authorization: `Bearer ${cfg.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }
+    );
+    if (!res.ok) throw new Error(`GitHub API 错误: ${res.status}`);
 
-  static async _cloudDelete(id) {
-    try {
-      await fetch(`${this._apiUrl}/entries/${id}`, { method: 'DELETE' });
-    } catch (e) {
-      console.warn('云端删除失败:', e.message);
-    }
-  }
+    const result = await res.json();
+    // 保存 sha 以便下次增量更新
+    cfg._sha = result.content.sha;
+    this.saveGitHubConfig(cfg);
 
-  static async _cloudReplace(entries) {
-    try {
-      const obj = {};
-      entries.forEach(e => { obj[e.id] = e; });
-      await fetch(`${this._apiUrl}/entries`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(obj),
-      });
-    } catch (e) {
-      console.warn('云端全量替换失败:', e.message);
-    }
-  }
-
-  static async _cloudClear() {
-    try {
-      await fetch(`${this._apiUrl}/entries`, { method: 'DELETE' });
-    } catch (e) {
-      console.warn('云端清空失败:', e.message);
-    }
+    return { sha: result.content.sha };
   }
 
   // ===== 同步状态 =====
   static getSyncStatus() { return this._syncStatus; }
+  static setSyncStatus(s) { this._syncStatus = s; this._notify(); }
 
   static onSync(fn) {
     this._syncListeners.push(fn);
-    return () => {
-      this._syncListeners = this._syncListeners.filter(f => f !== fn);
-    };
+    return () => { this._syncListeners = this._syncListeners.filter(f => f !== fn); };
   }
-
-  static _setStatus(status) {
-    this._syncStatus = status;
-    this._notify();
-  }
-
   static _notify() {
-    this._syncListeners.forEach(fn => {
-      try { fn(this._syncStatus); } catch (e) { /* ignore */ }
-    });
+    this._syncListeners.forEach(fn => { try { fn(this._syncStatus); } catch {} });
   }
 
   // ===== 生成短 ID =====
@@ -163,7 +163,6 @@ class AnimeDB {
 
   // ===== 读取 =====
   static getAll() { return [...this._cache]; }
-
   static getById(id) { return this._cache.find(e => e.id === id) || null; }
 
   static search({ query = '', type = 'all', status = 'all' } = {}) {
@@ -198,7 +197,6 @@ class AnimeDB {
     };
     this._cache.unshift(entry);
     this._saveLocal();
-    this._cloudAdd(entry);
     return entry;
   }
 
@@ -216,7 +214,6 @@ class AnimeDB {
       }
     }
     this._saveLocal();
-    this._cloudUpdate(id, this._cache[idx]);
     return this._cache[idx];
   }
 
@@ -225,26 +222,22 @@ class AnimeDB {
     if (idx === -1) return false;
     this._cache.splice(idx, 1);
     this._saveLocal();
-    this._cloudDelete(id);
     return true;
   }
 
-  // ===== 撤销删除 =====
   static undoAdd(entry) {
     if (!entry || !entry.id) return null;
     if (this._cache.some(e => e.id === entry.id)) return entry;
     this._cache.unshift(entry);
     this._saveLocal();
-    this._cloudAdd(entry);
     return entry;
   }
 
-  // ===== 导出 =====
+  // ===== 导出 / 导入 =====
   static exportData() {
     return JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), entries: this._cache }, null, 2);
   }
 
-  // ===== 导入 =====
   static importData(jsonStr) {
     let parsed;
     try { parsed = JSON.parse(jsonStr); } catch { throw new Error('JSON 格式错误'); }
@@ -265,14 +258,11 @@ class AnimeDB {
     }));
     this._cache = entries;
     this._saveLocal();
-    this._cloudReplace(entries);
     return entries.length;
   }
 
-  // ===== 重置 =====
   static reset() {
     this._cache = [];
     localStorage.removeItem(this.STORAGE_KEY);
-    this._cloudClear();
   }
 }

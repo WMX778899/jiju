@@ -853,35 +853,27 @@ class AniListApp {
 // 同步状态指示器
 // ============================================================
 
-function updateSyncUI(status) {
+function updateSyncUI(status, msg) {
   const el = document.getElementById('syncStatus');
   const text = document.getElementById('syncText');
   if (!el || !text) return;
-
-  el.classList.remove('sync-local', 'sync-syncing', 'sync-connected', 'sync-error');
-
+  el.className = 'sync-status sync-' + status;
   const icon = el.querySelector('i');
-  switch (status) {
-    case SYNC_STATUS.LOCAL:
-      el.classList.add('sync-local');
-      icon.className = 'fa-solid fa-cloud-slash';
-      text.textContent = '本地模式';
-      break;
-    case SYNC_STATUS.SYNCING:
-      el.classList.add('sync-syncing');
-      icon.className = 'fa-solid fa-cloud-arrow-up';
-      text.textContent = '同步中…';
-      break;
-    case SYNC_STATUS.CONNECTED:
-      el.classList.add('sync-connected');
-      icon.className = 'fa-solid fa-cloud-check';
-      text.textContent = '已同步';
-      break;
-    case SYNC_STATUS.ERROR:
-      el.classList.add('sync-error');
-      icon.className = 'fa-solid fa-cloud-exclamation';
-      text.textContent = '同步失败';
-      break;
+  const icons = {
+    local: 'fa-solid fa-cloud-slash',
+    syncing: 'fa-solid fa-cloud-arrow-up',
+    connected: 'fa-solid fa-cloud-check',
+    error: 'fa-solid fa-cloud-exclamation',
+  };
+  if (icons[status]) icon.className = icons[status];
+  text.textContent = msg || { local: '本地', syncing: '同步中…', connected: '已同步', error: '同步失败' }[status] || '本地';
+}
+
+function showGitHubStatus(msg, isError) {
+  const el = document.getElementById('githubStatus');
+  if (el) {
+    el.textContent = msg;
+    el.style.color = isError ? 'var(--danger)' : 'var(--success)';
   }
 }
 
@@ -889,22 +881,106 @@ function updateSyncUI(status) {
 // 启动
 // ============================================================
 
-document.addEventListener('DOMContentLoaded', async () => {
-  // 初始化云同步
-  const apiUrl = (typeof WORKER_API !== 'undefined') ? WORKER_API : '';
-  if (apiUrl) {
-    AnimeDB.onSync((status) => { updateSyncUI(status); });
-    AnimeDB.init(apiUrl);
+document.addEventListener('DOMContentLoaded', () => {
+  // 初始化本地数据存储
+  AnimeDB.init();
+
+  // 加载 GitHub 配置
+  const cfg = AnimeDB.getGitHubConfig();
+  if (cfg) {
+    document.getElementById('githubToken').value = cfg.token || '';
+    document.getElementById('githubRepo').value = cfg.repo || '';
+    if (cfg.token) updateSyncUI('connected', '云端');
+    else updateSyncUI('local');
   } else {
     updateSyncUI('local');
   }
 
-  // 启动应用（先用本地数据渲染）
+  // 启动应用
   new AniListApp();
 
-  // 监听远程变化自动刷新
-  AnimeDB.onSync(() => {
-    const app = window.__anilistApp;
-    if (app) app.render();
+  // ===== GitHub 同步弹窗事件 =====
+  const githubBtn = document.getElementById('githubBtn');
+  const githubModal = document.getElementById('githubModal');
+  const githubClose = document.getElementById('githubClose');
+  const githubCancel = document.getElementById('githubCancel');
+  const githubPushBtn = document.getElementById('githubPushBtn');
+  const githubPullBtn = document.getElementById('githubPullBtn');
+
+  if (githubBtn && githubModal) {
+    const openGithubModal = () => {
+      const c = AnimeDB.getGitHubConfig();
+      if (c) {
+        document.getElementById('githubToken').value = c.token || '';
+        document.getElementById('githubRepo').value = c.repo || '';
+      }
+      githubModal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    };
+    const closeGithubModal = () => {
+      githubModal.classList.remove('open');
+      document.body.style.overflow = '';
+    };
+
+    githubBtn.addEventListener('click', openGithubModal);
+    githubClose.addEventListener('click', closeGithubModal);
+    githubCancel.addEventListener('click', closeGithubModal);
+    githubModal.addEventListener('click', (e) => {
+      if (e.target === githubModal) closeGithubModal();
+    });
+
+    // 上传到云端
+    githubPushBtn.addEventListener('click', async () => {
+      const token = document.getElementById('githubToken').value.trim();
+      const repo = document.getElementById('githubRepo').value.trim();
+      if (!token || !repo) {
+        showGitHubStatus('请填写 Token 和仓库名', true);
+        return;
+      }
+      AnimeDB.saveGitHubConfig({ token, repo });
+      showGitHubStatus('正在上传…');
+      updateSyncUI('syncing');
+      try {
+        const result = await AnimeDB.pushToGitHub();
+        showGitHubStatus('✅ 上传成功！');
+        updateSyncUI('connected', '云端');
+      } catch (e) {
+        showGitHubStatus('❌ ' + e.message, true);
+        updateSyncUI('error');
+      }
+    });
+
+    // 从云端下载
+    githubPullBtn.addEventListener('click', async () => {
+      const token = document.getElementById('githubToken').value.trim();
+      const repo = document.getElementById('githubRepo').value.trim();
+      if (!token || !repo) {
+        showGitHubStatus('请填写 Token 和仓库名', true);
+        return;
+      }
+      AnimeDB.saveGitHubConfig({ token, repo });
+      showGitHubStatus('正在下载…');
+      updateSyncUI('syncing');
+      try {
+        const result = await AnimeDB.pullFromGitHub();
+        showGitHubStatus(`✅ 已合并 ${result.count} 条云端数据`);
+        updateSyncUI('connected', '云端');
+        // 刷新界面
+        const app = window.__anilistApp;
+        if (app) app.render();
+      } catch (e) {
+        showGitHubStatus('❌ ' + e.message, true);
+        updateSyncUI('error');
+      }
+    });
+  }
+
+  // Escape 键关闭
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const modals = document.querySelectorAll('.modal-overlay.open');
+      modals.forEach(m => m.classList.remove('open'));
+      document.body.style.overflow = '';
+    }
   });
 });

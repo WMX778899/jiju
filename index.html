@@ -34,6 +34,9 @@
             <i class="fa-solid fa-upload"></i>
           </button>
           <input type="file" id="importFileInput" accept=".json" style="display:none">
+          <button class="header-btn" id="githubBtn" title="GitHub 云同步">
+            <i class="fa-brands fa-github"></i>
+          </button>
           <button class="header-btn" id="resetBtn" title="重置所有数据">
             <i class="fa-solid fa-arrow-rotate-left"></i>
           </button>
@@ -209,17 +212,50 @@
   <!-- ===== Toast 消息 ===== -->
   <div class="toast-container" id="toastContainer"></div>
 
-  <!-- ===== 同步状态指示器 ===== -->
+  <!-- ===== 同步状态指示器（右上角） ===== -->
   <div class="sync-status" id="syncStatus" title="数据同步状态">
     <i class="fa-solid fa-cloud"></i>
-    <span id="syncText">同步中…</span>
+    <span id="syncText">本地</span>
   </div>
 
-  <!-- ===== 云端 Worker API 配置 ===== -->
-  <script>
-    // ⚡ 部署 Worker 后把下面链接换成你的 Worker 地址
-    const WORKER_API = 'https://你的-worker-名称.你的用户名.workers.dev';
-  </script>
+  <!-- ===== GitHub 同步配置弹窗 ===== -->
+  <div class="modal-overlay" id="githubModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title"><i class="fa-brands fa-github"></i> GitHub 云同步</h2>
+        <button class="modal-close" id="githubClose"><i class="fas fa-times"></i></button>
+      </div>
+      <form class="anime-form" id="githubForm">
+        <div class="form-group">
+          <label class="form-label">Personal Access Token</label>
+          <input type="password" id="githubToken" class="form-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" maxlength="100">
+          <span style="font-size:11px;color:var(--text-muted);margin-top:2px">
+            需要 <code>public_repo</code> 权限 ·
+            <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--accent)">去创建 →</a>
+          </span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">仓库 (owner/repo)</label>
+          <input type="text" id="githubRepo" class="form-input" placeholder="WMX778899/jiju" maxlength="100">
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button type="button" class="btn btn-submit" id="githubPushBtn" style="flex:1;white-space:nowrap">
+            <i class="fa-solid fa-upload"></i> 上传到云端
+          </button>
+          <button type="button" class="btn btn-cancel" id="githubPullBtn" style="flex:1;white-space:nowrap">
+            <i class="fa-solid fa-download"></i> 从云端下载
+          </button>
+        </div>
+
+        <div id="githubStatus" style="font-size:12px;color:var(--text-muted);text-align:center;padding:4px 0"></div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-cancel" id="githubCancel">关闭</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- ===== JS ===== -->
   <script src="js/storage.js"></script>
