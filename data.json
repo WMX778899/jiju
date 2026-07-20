@@ -1,5 +1,15 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-20T12:48:24.211Z",
-  "entries": []
+  "updatedAt": "2026-07-20T12:49:52.832Z",
+  "entries": [
+    {
+      "id": "mrt8236iea7jcl",
+      "title": "张三",
+      "type": "anime",
+      "status": "watching",
+      "rating": 4,
+      "notes": "",
+      "createdAt": "2026-07-20T12:49:46.650Z"
+    }
+  ]
 }
