@@ -108,11 +108,11 @@ function showUndoToast(entryId, onUndo, onExpire) {
   toast.appendChild(btn);
   container.appendChild(toast);
 
-  // 5秒后自动消失
+  // 10秒后自动消失
   const timer = setTimeout(() => {
     removeUndoToast(toast, entryId);
     if (onExpire) onExpire(entryId);
-  }, 5000);
+  }, 10000);
   _undoTimers.set(entryId, timer);
 }
 
