@@ -820,14 +820,6 @@ body {
   to { transform: translateY(0); opacity: 1; }
 }
 
-/* 桌面端模态框居中 */
-@media (min-width: 768px) {
-  .modal-overlay { align-items: center; }
-  .modal-content {
-    border-radius: var(--modal-radius);
-    max-height: 80vh;
-  }
-}
 
 .modal-header {
   display: flex;
@@ -1197,11 +1189,98 @@ body {
 }
 
 /* ============================================================
-   响应式适配
+   响应式适配（移动优先）
    ============================================================ */
 
-/* 平板 (≥600px) */
-@media (min-width: 600px) {
+/* ── 极小屏 (<400px) ──────────────────────── */
+@media (max-width: 399px) {
+  .app-container { padding: 10px 10px 90px; }
+
+  .header-content { padding: 10px 12px; gap: 6px; }
+  .header-icon { width: 32px; height: 32px; font-size: 14px; }
+  .header-title { font-size: 17px; }
+  .header-btn { width: 32px; height: 32px; font-size: 11px; }
+
+  .card { padding: 12px; border-radius: 12px; }
+  .card-type-badge { width: 34px; height: 34px; font-size: 14px; }
+  .card-title { font-size: 14px; }
+  .card-footer { flex-direction: column; align-items: flex-start; gap: 6px; }
+
+  .stat-item { min-width: 50px; padding: 6px 2px; border-radius: 10px; }
+  .stat-count { font-size: 16px; }
+  .stat-label { font-size: 9px; gap: 2px; }
+  .stat-label i { font-size: 8px; }
+
+  .filter-select { font-size: 11px; padding: 7px 8px; padding-right: 26px; background-size: 10px; }
+  .search-input { font-size: 12px; padding: 9px 32px 9px 32px; }
+  .search-icon { left: 10px; font-size: 12px; }
+
+  .fab {
+    bottom: 16px; right: 16px;
+    width: 44px; height: 44px;
+    font-size: 17px;
+  }
+
+  .modal-content { padding: 16px 14px 20px; border-radius: 16px 16px 0 0; }
+  .modal-title { font-size: 17px; }
+
+  .sync-status { top: 6px; right: 6px; padding: 3px 8px; font-size: 9px; gap: 3px; }
+  .sync-status i { font-size: 9px; }
+
+  .toast { font-size: 12px; padding: 8px 16px; }
+  .undo-btn { font-size: 11px; padding: 4px 10px; }
+}
+
+/* ── 标准手机 (400~599px) ──────────────────── */
+@media (min-width: 400px) and (max-width: 599px) {
+  .app-container { padding: 12px 14px 90px; }
+
+  .header-content { padding: 12px 14px; gap: 8px; }
+  .header-icon { width: 36px; height: 36px; font-size: 16px; }
+  .header-title { font-size: 19px; }
+
+  .card { padding: 14px; }
+  .card-type-badge { width: 38px; height: 38px; font-size: 16px; }
+  .card-title { font-size: 15px; }
+
+  .stat-item { min-width: 54px; padding: 8px 4px; }
+  .stat-count { font-size: 18px; }
+
+  .fab {
+    bottom: 18px; right: 18px;
+    width: 48px; height: 48px;
+    font-size: 18px;
+  }
+
+  .modal-content { padding: 18px 16px 24px; }
+  .modal-title { font-size: 18px; }
+
+  .sync-status { top: 8px; right: 8px; }
+}
+
+/* ── 手机通用优化 ──────────────────────────── */
+@media (max-width: 599px) {
+  .header-content { flex-wrap: wrap; }
+  .header-actions { gap: 4px; }
+
+  .form-row { flex-direction: column; gap: 14px; }
+
+  .stats-bar { gap: 5px; overflow-x: auto; }
+  .stats-bar::-webkit-scrollbar { display: none; }
+
+  .filter-group { gap: 6px; }
+  .filter-select-wrapper { min-width: 80px; flex: 1; }
+
+  .empty-icon { width: 64px; height: 64px; font-size: 24px; border-radius: 18px; }
+  .empty-text { font-size: 14px; }
+
+  .confetti-piece { font-size: 12px !important; }
+
+  .toast-container { bottom: 80px; }
+}
+
+/* ── 平板 (600~959px) ──────────────────────── */
+@media (min-width: 600px) and (max-width: 959px) {
   .app-container { padding: 20px 24px 100px; }
 
   .list-container {
@@ -1220,29 +1299,63 @@ body {
   .filter-group { flex: 1.5; }
 
   .stats-bar { gap: 10px; }
+
+  .fab {
+    bottom: 28px; right: 28px;
+    width: 56px; height: 56px;
+    font-size: 22px;
+  }
 }
 
-/* 桌面 (≥960px) */
+/* ── 桌面 (960px+) ─────────────────────────── */
 @media (min-width: 960px) {
+  .app-container { padding: 24px 32px 100px; }
+
   .list-container {
     grid-template-columns: repeat(3, 1fr);
     gap: 16px;
   }
 
   .fab {
-    bottom: 32px;
-    right: 32px;
-    width: 60px;
-    height: 60px;
+    bottom: 32px; right: 32px;
+    width: 60px; height: 60px;
     font-size: 24px;
   }
 
   .filter-group { flex: 1.2; }
+
+  .modal-content {
+    max-height: 80vh;
+    border-radius: var(--modal-radius);
+  }
+
+  .modal-overlay { align-items: center; }
+
+  .stats-bar { gap: 12px; }
 }
 
-/* 大屏 (≥1200px) */
+/* ── 大屏 (1200px+) ────────────────────────── */
 @media (min-width: 1200px) {
+  .app-container { padding: 28px 40px 100px; }
+
   .list-container {
     grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+  }
+
+  .header-content { padding: 18px 24px; }
+  .header-title { font-size: 24px; }
+}
+
+/* ── 安全区域适配（刘海屏等）──────────────── */
+@supports (padding: max(0px)) {
+  .app-container {
+    padding-left: max(16px, env(safe-area-inset-left, 16px));
+    padding-right: max(16px, env(safe-area-inset-right, 16px));
+    padding-bottom: max(100px, env(safe-area-inset-bottom, 100px));
+  }
+  .fab {
+    bottom: max(24px, env(safe-area-inset-bottom, 24px));
+    right: max(24px, env(safe-area-inset-right, 24px));
   }
 }
