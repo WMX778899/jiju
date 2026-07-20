@@ -368,6 +368,8 @@ class AniListApp {
     this.cacheDom();
     this.bindEvents();
     this.render();
+    // 暴露给全局，用于远程同步时自动刷新
+    window.__anilistApp = this;
   }
 
   initParticleBg() {
@@ -848,9 +850,64 @@ class AniListApp {
 }
 
 // ============================================================
+// 同步状态指示器
+// ============================================================
+
+function updateSyncUI(status) {
+  const el = document.getElementById('syncStatus');
+  const text = document.getElementById('syncText');
+  if (!el || !text) return;
+
+  // 移除旧状态
+  el.classList.remove('sync-local', 'sync-syncing', 'sync-connected', 'sync-error');
+
+  switch (status) {
+    case 'local':
+      el.classList.add('sync-local');
+      el.querySelector('i').className = 'fa-solid fa-cloud-slash';
+      text.textContent = '本地模式';
+      break;
+    case 'syncing':
+      el.classList.add('sync-syncing');
+      el.querySelector('i').className = 'fa-solid fa-cloud-arrow-up';
+      text.textContent = '同步中…';
+      break;
+    case 'connected':
+      el.classList.add('sync-connected');
+      el.querySelector('i').className = 'fa-solid fa-cloud-check';
+      text.textContent = '已同步';
+      break;
+    case 'error':
+      el.classList.add('sync-error');
+      el.querySelector('i').className = 'fa-solid fa-cloud-exclamation';
+      text.textContent = '同步失败';
+      break;
+  }
+}
+
+// ============================================================
 // 启动
 // ============================================================
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // 初始化云同步（不阻塞 UI）
+  if (typeof FIREBASE_CONFIG !== 'undefined') {
+    // 注册同步回调
+    AnimeDB.onSync((status) => {
+      updateSyncUI(status);
+    });
+    // 异步初始化，不阻塞渲染
+    AnimeDB.init(FIREBASE_CONFIG);
+  } else {
+    updateSyncUI('local');
+  }
+
+  // 启动应用（先用本地数据渲染）
   new AniListApp();
+
+  // 监听远程变化自动刷新
+  AnimeDB.onSync(() => {
+    const app = window.__anilistApp;
+    if (app) app.render();
+  });
 });
