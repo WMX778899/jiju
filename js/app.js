@@ -7,13 +7,13 @@
 // 工具函数
 // ============================================================
 
-const TYPE_ICONS = { anime: '🎌', drama: '📺', movie: '🎬' };
+const TYPE_ICONS = { anime: 'tv', drama: 'clapperboard', movie: 'film' };
 const TYPE_LABELS = { anime: '动漫', drama: '剧集', movie: '电影' };
 const STATUS_LABELS = {
-  watching: '▶ 在看',
-  want_to_watch: '⏳ 想看',
-  completed: '✅ 看完',
-  on_hold: '💤 搁置',
+  watching: '<i class="fa-solid fa-play"></i> 在看',
+  want_to_watch: '<i class="fa-regular fa-clock"></i> 想看',
+  completed: '<i class="fa-solid fa-check"></i> 看完',
+  on_hold: '<i class="fa-solid fa-pause"></i> 搁置',
 };
 
 const STATUS_CLASSES = {
@@ -744,9 +744,9 @@ class AniListApp {
       this.listContainer.innerHTML = '';
       this.emptyState.classList.add('visible');
       if (this.searchQuery || this.currentType !== 'all' || this.currentStatus !== 'all') {
-        this.emptyText.textContent = '没有符合条件的结果 🧐';
+        this.emptyText.innerHTML = '<i class="fa-solid fa-search" style="opacity:0.4;margin-right:4px"></i> 没有符合条件的结果';
       } else {
-        this.emptyText.textContent = '还没有记录，点 + 添加吧 🎬';
+        this.emptyText.innerHTML = '<i class="fa-solid fa-pen" style="opacity:0.4;margin-right:4px"></i> 还没有记录，点 + 添加吧';
       }
       return;
     }
@@ -807,13 +807,19 @@ class AniListApp {
       ? `<div class="card-notes">${this.escapeHtml(entry.notes)}</div>`
       : '';
 
+    const typeIcon = TYPE_ICONS[entry.type] || 'film';
+    const typeColors = { anime: '#f472b6', drama: '#60a5fa', movie: '#f59e0b' };
+    const typeColor = typeColors[entry.type] || '#a855f7';
+
     return `
       <div class="card" data-id="${entry.id}" style="animation-delay: ${index * 0.04}s">
         <div class="card-header">
-          <div class="card-type-badge">${TYPE_ICONS[entry.type] || '🎬'}</div>
+          <div class="card-type-badge" style="background: ${typeColor}18; color: ${typeColor}">
+            <i class="fa-solid fa-${typeIcon}"></i>
+          </div>
           <div class="card-title">${this.escapeHtml(entry.title)}</div>
           <button class="card-delete-btn header-btn" title="删除" style="flex-shrink:0">
-            <i class="fas fa-times"></i>
+            <i class="fa-regular fa-trash-can"></i>
           </button>
         </div>
         <div>
@@ -828,7 +834,7 @@ class AniListApp {
               `<span class="${i < entry.rating ? 'star-filled' : ''}">${i < entry.rating ? '★' : '☆'}</span>`
             ).join('')}
           </div>
-          <span class="card-date">${formatDate(entry.createdAt)}</span>
+          <span class="card-date"><i class="fa-regular fa-calendar"></i> ${formatDate(entry.createdAt)}</span>
         </div>
       </div>
     `;
