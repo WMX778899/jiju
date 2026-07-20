@@ -72,7 +72,68 @@ function showToast(message, type = 'success') {
 }
 
 // ============================================================
-// 粒子背景动画
+// 鼠标光晕跟随
+// ============================================================
+
+function createGlowCursor() {
+  const el = document.createElement('div');
+  el.id = 'glowCursor';
+  document.body.appendChild(el);
+  let raf = null;
+  let mx = -999, my = -999;
+
+  document.addEventListener('mousemove', (e) => {
+    mx = e.clientX;
+    my = e.clientY;
+    if (!raf) {
+      raf = requestAnimationFrame(() => {
+        el.style.left = mx + 'px';
+        el.style.top = my + 'px';
+        raf = null;
+      });
+    }
+  });
+}
+
+// ============================================================
+// 彩纸庆祝效果
+// ============================================================
+
+function fireConfetti() {
+  const container = document.createElement('div');
+  container.className = 'confetti-container';
+  document.body.appendChild(container);
+
+  const colors = ['#a855f7', '#ec4899', '#f59e0b', '#22c55e', '#60a5fa', '#f472b6', '#c084fc'];
+  const shapes = ['■', '●', '▲', '★', '♦'];
+
+  for (let i = 0; i < 50; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const shape = shapes[Math.floor(Math.random() * shapes.length)];
+    const size = Math.random() * 8 + 6;
+    const left = Math.random() * 100;
+    const delay = Math.random() * 1.2;
+    const duration = Math.random() * 1.5 + 2;
+
+    piece.textContent = shape;
+    piece.style.cssText = `
+      left: ${left}%;
+      font-size: ${size}px;
+      color: ${color};
+      animation-delay: ${delay}s;
+      animation-duration: ${duration}s;
+      text-shadow: 0 0 6px ${color}44;
+    `;
+    container.appendChild(piece);
+  }
+
+  setTimeout(() => container.remove(), 4500);
+}
+
+// ============================================================
+// 粒子背景动画（增强版）
 // ============================================================
 
 class ParticleBackground {
@@ -80,9 +141,12 @@ class ParticleBackground {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.particles = [];
+    this.stars = [];
     this.mouse = { x: -999, y: -999 };
+    this.time = 0;
     this.resize();
     this.initParticles();
+    this.initStars();
     this.bindEvents();
     this.animate();
   }
@@ -93,14 +157,30 @@ class ParticleBackground {
   }
 
   initParticles() {
-    const count = Math.min(80, Math.floor((this.canvas.width * this.canvas.height) / 15000));
+    const count = Math.min(120, Math.floor((this.canvas.width * this.canvas.height) / 12000));
     this.particles = Array.from({ length: count }, () => ({
       x: Math.random() * this.canvas.width,
       y: Math.random() * this.canvas.height,
-      vx: (Math.random() - 0.5) * 1.2,
-      vy: (Math.random() - 0.5) * 1.2,
-      size: Math.random() * 2 + 0.5,
-      alpha: Math.random() * 0.4 + 0.1,
+      vx: (Math.random() - 0.5) * 1.5,
+      vy: (Math.random() - 0.5) * 1.5,
+      size: Math.random() * 2.5 + 0.5,
+      alpha: Math.random() * 0.5 + 0.1,
+      pulse: Math.random() * Math.PI * 2,
+      pulseSpeed: Math.random() * 0.02 + 0.005,
+      // 颜色：紫色系为主，偶尔带粉色/蓝色
+      hue: Math.random() < 0.7 ? 270 + Math.random() * 30 : (Math.random() < 0.5 ? 330 : 220),
+    }));
+  }
+
+  initStars() {
+    // 远处闪烁的小星星
+    this.stars = Array.from({ length: 30 }, () => ({
+      x: Math.random() * this.canvas.width,
+      y: Math.random() * this.canvas.height,
+      size: Math.random() * 1.2 + 0.3,
+      alpha: Math.random() * 0.5 + 0.1,
+      speed: Math.random() * 0.02 + 0.005,
+      phase: Math.random() * Math.PI * 2,
     }));
   }
 
@@ -108,6 +188,7 @@ class ParticleBackground {
     const resizeFn = () => {
       this.resize();
       this.initParticles();
+      this.initStars();
     };
     window.addEventListener('resize', resizeFn);
 
@@ -122,10 +203,22 @@ class ParticleBackground {
   }
 
   animate() {
-    const { ctx, canvas, particles, mouse } = this;
+    const { ctx, canvas, particles, stars, mouse } = this;
+    this.time += 0.005;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // 绘制闪烁星星（背景层）
+    for (const s of stars) {
+      const flicker = Math.sin(this.time * 3 + s.phase) * 0.3 + 0.7;
+      const a = s.alpha * flicker;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200, 180, 255, ${a})`;
+      ctx.fill();
+    }
+
     for (const p of particles) {
+      p.pulse += p.pulseSpeed;
       p.x += p.vx;
       p.y += p.vy;
 
@@ -134,37 +227,60 @@ class ParticleBackground {
       if (p.y < 0) p.y = canvas.height;
       if (p.y > canvas.height) p.y = 0;
 
-      // 鼠标吸引效果
+      // 鼠标吸引/弹开效果
       const dx = mouse.x - p.x;
       const dy = mouse.y - p.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 150) {
-        const force = (150 - dist) / 150;
-        p.vx += (dx / dist) * force * 0.02;
-        p.vy += (dy / dist) * force * 0.02;
-        // 限制速度
+      if (dist < 180) {
+        const force = (180 - dist) / 180;
+        p.vx += (dx / dist) * force * 0.025;
+        p.vy += (dy / dist) * force * 0.025;
         const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-        if (speed > 2) { p.vx = (p.vx / speed) * 2; p.vy = (p.vy / speed) * 2; }
+        if (speed > 2.5) { p.vx = (p.vx / speed) * 2.5; p.vy = (p.vy / speed) * 2.5; }
       }
 
+      // 粒子呼吸效果
+      const breathe = Math.sin(p.pulse) * 0.3 + 0.7;
+      const currentSize = p.size * breathe;
+
+      // 绘制粒子光晕（外发光）
+      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, currentSize * 4);
+      gradient.addColorStop(0, `hsla(${p.hue}, 80%, 70%, ${p.alpha * 0.4})`);
+      gradient.addColorStop(1, `hsla(${p.hue}, 80%, 70%, 0)`);
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(168, 85, 247, ${p.alpha})`;
+      ctx.arc(p.x, p.y, currentSize * 4, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // 绘制粒子核心
+      const coreAlpha = Math.sin(p.pulse) * 0.1 + 0.3;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, currentSize, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue}, 80%, 75%, ${p.alpha + coreAlpha})`;
+      ctx.fill();
+
+      // 粒子核心高光
+      ctx.beginPath();
+      ctx.arc(p.x - currentSize * 0.2, p.y - currentSize * 0.2, currentSize * 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha * 0.3})`;
       ctx.fill();
     }
 
-    // 连线
+    // 连线（带呼吸效果）
+    const lineGlow = Math.sin(this.time * 2) * 0.02 + 0.06;
     for (let i = 0; i < particles.length; i++) {
       for (let j = i + 1; j < particles.length; j++) {
         const dx = particles[i].x - particles[j].x;
         const dy = particles[i].y - particles[j].y;
         const dist = dx * dx + dy * dy;
-        if (dist < 15000) {
+        if (dist < 20000) {
+          const alpha = lineGlow * (1 - dist / 20000);
+          const hue = (particles[i].hue + particles[j].hue) / 2;
           ctx.beginPath();
           ctx.moveTo(particles[i].x, particles[i].y);
           ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.strokeStyle = `rgba(168, 85, 247, ${0.08 * (1 - dist / 15000)})`;
-          ctx.lineWidth = 0.5;
+          ctx.strokeStyle = `hsla(${hue}, 70%, 65%, ${alpha})`;
+          ctx.lineWidth = 0.6;
           ctx.stroke();
         }
       }
@@ -187,8 +303,10 @@ class AniListApp {
     this.currentStatus = 'all';
     this.currentSort = 'newest';
     this.searchQuery = '';
+    this.prevStats = { all: 0, watching: 0, want_to_watch: 0, completed: 0, on_hold: 0 };
 
     this.initParticleBg();
+    this.initGlowCursor();
     this.cacheDom();
     this.bindEvents();
     this.render();
@@ -197,6 +315,10 @@ class AniListApp {
   initParticleBg() {
     const canvas = document.getElementById('particleCanvas');
     if (canvas) new ParticleBackground(canvas);
+  }
+
+  initGlowCursor() {
+    createGlowCursor();
   }
 
   cacheDom() {
@@ -436,6 +558,8 @@ class AniListApp {
     } else {
       AnimeDB.add(data);
       showToast('已添加 🎉');
+      // 添加时放彩纸庆祝
+      setTimeout(fireConfetti, 200);
     }
 
     this.closeModal(this.formModal);
@@ -454,11 +578,17 @@ class AniListApp {
 
   handleDelete() {
     if (!this.deletingId) return;
-    AnimeDB.delete(this.deletingId);
-    this.deletingId = null;
-    this.closeModal(this.deleteModal);
-    showToast('已删除 🗑️');
-    this.render();
+    // 卡片淡出动画
+    const card = this.listContainer.querySelector(`.card[data-id="${this.deletingId}"]`);
+    if (card) card.classList.add('removing');
+
+    setTimeout(() => {
+      AnimeDB.delete(this.deletingId);
+      this.deletingId = null;
+      this.closeModal(this.deleteModal);
+      showToast('已删除 🗑️');
+      this.render();
+    }, 250);
   }
 
   // ===== 导出 =====
@@ -565,11 +695,19 @@ class AniListApp {
 
   renderStats() {
     const stats = AnimeDB.getStats();
-    this.$('statAll').textContent = stats.all;
-    this.$('statWatching').textContent = stats.watching;
-    this.$('statWant').textContent = stats.want_to_watch;
-    this.$('statCompleted').textContent = stats.completed;
-    this.$('statHold').textContent = stats.on_hold;
+    const statMap = { all: 'statAll', watching: 'statWatching', want_to_watch: 'statWant', completed: 'statCompleted', on_hold: 'statHold' };
+
+    for (const [key, id] of Object.entries(statMap)) {
+      const el = this.$(id);
+      const newVal = stats[key];
+      if (el.textContent !== String(newVal)) {
+        el.textContent = newVal;
+        el.classList.remove('pop');
+        // 触发重排以重新播放动画
+        void el.offsetWidth;
+        el.classList.add('pop');
+      }
+    }
 
     // 高亮当前筛选
     const activeStatus = this.currentStatus === 'all' ? 'all' : this.currentStatus;

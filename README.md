@@ -17,31 +17,9 @@
 
 ## 在线演示
 
-👉 [https://你的用户名.github.io/anilist](https://你的用户名.github.io/anilist)
+👉 [https://wmx778899.github.io/jiju](https://wmx778899.github.io/jiju)
 
 ## 部署到 GitHub Pages
-
-### 方法一：直接推送
-
-```bash
-# 1. 创建 GitHub 仓库（如 anilist）
-# 2. 在仓库 Settings → Pages 中设置 Source 为 GitHub Actions
-
-# 3. 推送代码
-git init
-git add .
-git commit -m "🎉 init AniList"
-git branch -M main
-git remote add origin https://github.com/你的用户名/anilist.git
-git push -u origin main
-```
-
-### 方法二：使用 gh-pages 分支
-
-```bash
-# 安装 gh-pages 工具（可选）
-npx gh-pages -d .
-```
 
 ### Settings 配置
 
@@ -50,7 +28,7 @@ npx gh-pages -d .
 3. Branch 选择 `main`，目录选 `/ (root)`
 4. 点击 Save
 
-等待 1-2 分钟后访问 `https://你的用户名.github.io/anilist`
+等待 1-2 分钟后访问 `https://wmx778899.github.io/jiju`
 
 ## 本地运行
 
