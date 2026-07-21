@@ -213,13 +213,6 @@ class AnimeDB {
     return entries.length;
   }
 
-  // ===== 重置 =====
-  static reset() {
-    this._ensureLoaded();
-    this._cache = [];
-    this._pushToGithub(false);
-  }
-
   // ===== 云端推送核心 =====
   /** 手动推送（显示结果） */
   static async push() {
