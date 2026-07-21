@@ -1414,250 +1414,162 @@ body {
 }
 
 /* ============================================================
-   密码门禁系统
+   密码门禁（精简版）
    ============================================================ */
 
-/* ---------- 门禁覆盖层 ---------- */
-.gate-overlay {
+/* ---------- 全屏居中容器 ---------- */
+.gate-wrap {
   position: fixed;
   inset: 0;
   z-index: 9000;
-  background: rgba(8, 6, 16, 0.92);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1),
-              backdrop-filter 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(8, 6, 16, 0.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
-.gate-overlay.gate-passed {
-  opacity: 0;
-  backdrop-filter: blur(0);
-  -webkit-backdrop-filter: blur(0);
-  pointer-events: none;
-}
-
-.gate-container {
+/* ---------- 输入框容器 ---------- */
+.gate-box {
   position: relative;
   width: 100%;
-  max-width: 400px;
+  max-width: 320px;
   padding: 20px;
-}
-
-/* ---------- 门禁卡片 ---------- */
-.gate-card {
-  position: relative;
-  background: linear-gradient(145deg, #1e1a35, #16122a);
-  border: 1px solid rgba(168, 85, 247, 0.25);
-  border-radius: 28px;
-  padding: 44px 32px 36px;
   text-align: center;
-  overflow: hidden;
-  animation: gateCardAppear 0.8s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  box-shadow:
-    0 0 60px rgba(168, 85, 247, 0.08),
-    0 8px 48px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(168, 85, 247, 0.1);
+  animation: gateFadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
-@keyframes gateCardAppear {
-  from { opacity: 0; transform: scale(0.92) translateY(24px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+@keyframes gateFadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* 卡片顶部光晕 */
-.gate-card-glow {
-  position: absolute;
-  top: -120px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 320px;
-  height: 200px;
-  background: radial-gradient(ellipse, rgba(168, 85, 247, 0.12) 0%, transparent 70%);
-  pointer-events: none;
-  animation: gateGlowPulse 4s ease-in-out infinite;
-}
-
-@keyframes gateGlowPulse {
-  0%, 100% { opacity: 0.6; transform: translateX(-50%) scaleY(1); }
-  50% { opacity: 1; transform: translateX(-50%) scaleY(1.2); }
-}
-
-/* 卡片背景装饰圆环 */
-.gate-card::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 500px;
-  height: 500px;
-  transform: translate(-50%, -50%);
-  background: conic-gradient(from 0deg, transparent, rgba(168,85,247,0.03), transparent, rgba(236,72,153,0.03), transparent);
-  animation: gateRingRotate 20s linear infinite;
-  pointer-events: none;
-}
-
-@keyframes gateRingRotate {
-  to { transform: translate(-50%, -50%) rotate(360deg); }
-}
-
-/* ---------- 锁图标 ---------- */
-.gate-icon-wrap {
+/* ---------- 输入框包裹（用于发光定位） ---------- */
+.gate-input-wrap {
   position: relative;
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.gate-icon {
-  width: 72px;
-  height: 72px;
-  border-radius: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  background: rgba(168, 85, 247, 0.1);
-  border: 1px solid rgba(168, 85, 247, 0.2);
-  color: var(--accent-hover);
-  position: relative;
-  z-index: 2;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: gateIconFloat 3s ease-in-out infinite;
-}
-
-@keyframes gateIconFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-
-.gate-icon-ring {
-  position: absolute;
-  inset: -8px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(168, 85, 247, 0.15);
-  animation: gateRingPulse 2.5s ease-out infinite;
-}
-
-@keyframes gateRingPulse {
-  0% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.15); opacity: 0.15; }
-  100% { transform: scale(1); opacity: 0.5; }
-}
-
-/* ---------- 标题 ---------- */
-.gate-title {
-  font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 400;
-  background: linear-gradient(90deg, #a855f7, #ec4899, #f59e0b, #60a5fa, #a855f7);
-  background-size: 300% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: 2px;
-  margin-bottom: 6px;
-  animation: gateTitleShimmer 6s linear infinite;
-}
-
-@keyframes gateTitleShimmer {
-  to { background-position: 300% center; }
-}
-
-.gate-subtitle {
-  color: var(--text-muted);
-  font-size: 13px;
-  margin-bottom: 32px;
-  letter-spacing: 2px;
-}
-
-/* ---------- 输入区域 ---------- */
-.gate-input-group {
-  position: relative;
-  max-width: 260px;
-  margin: 0 auto 0;
-}
-
+/* ---------- 密码输入框（主角） ---------- */
 .gate-input {
   width: 100%;
-  padding: 14px 18px;
-  background: rgba(11, 10, 18, 0.6);
-  border: 1.5px solid rgba(168, 85, 247, 0.2);
-  border-radius: 14px;
-  color: var(--text-primary);
-  font-size: 15px;
+  padding: 16px 20px;
+  background: rgba(11, 10, 18, 0.7);
+  border: 2px solid rgba(168, 85, 247, 0.25);
+  border-radius: 16px;
+  color: #fff;
+  font-size: 18px;
   font-family: var(--font-main);
   outline: none;
   text-align: center;
-  letter-spacing: 3px;
-  transition: all 0.3s ease;
+  letter-spacing: 4px;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   caret-color: var(--accent);
+  position: relative;
+  z-index: 2;
 }
 
 .gate-input::placeholder {
   color: var(--text-muted);
-  letter-spacing: 1px;
+  letter-spacing: 2px;
   font-weight: 300;
-  opacity: 0.7;
+  font-size: 15px;
+  opacity: 0.6;
 }
 
+/* Focus 时：霓虹边框 + 光晕 */
 .gate-input:focus {
   border-color: var(--accent);
+  background: rgba(11, 10, 18, 0.9);
   box-shadow:
-    0 0 0 3px rgba(168, 85, 247, 0.08),
-    0 0 24px rgba(168, 85, 247, 0.15);
-  background: rgba(11, 10, 18, 0.8);
+    0 0 0 4px rgba(168, 85, 247, 0.06),
+    0 0 32px rgba(168, 85, 247, 0.2),
+    0 0 60px rgba(168, 85, 247, 0.08);
+  transform: scale(1.02);
 }
 
-/* 输入框底线动画（focus 时出现） */
-.gate-input-line {
+/* 输入框底部发光条（focus 动画） */
+.gate-input-wrap::after {
+  content: '';
   position: absolute;
-  bottom: 0;
+  bottom: -1px;
   left: 50%;
   transform: translateX(-50%);
   width: 0;
-  height: 2px;
+  height: 3px;
   background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  border-radius: 2px;
-  transition: width 0.4s ease;
+  border-radius: 3px;
+  transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 3;
 }
 
-.gate-input:focus ~ .gate-input-line {
-  width: 70%;
+.gate-input-wrap:focus-within::after {
+  width: 80%;
 }
 
-/* ---------- 抖动动画（密码错误） ---------- */
+/* ---------- 输入框背景光晕（装饰） ---------- */
+.gate-input-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 80px;
+  background: radial-gradient(ellipse, rgba(168, 85, 247, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 0.5s ease;
+  opacity: 0.5;
+}
+
+.gate-input-wrap:focus-within .gate-input-glow {
+  opacity: 1;
+  animation: gateGlowPulse 2s ease-in-out infinite;
+}
+
+@keyframes gateGlowPulse {
+  0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+  50%      { opacity: 1;   transform: translate(-50%, -50%) scale(1.15); }
+}
+
+/* ---------- 错误抖动 ---------- */
 .gate-input.shake {
   animation: gateShake 0.45s ease;
   border-color: rgba(239, 68, 68, 0.5);
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+  box-shadow:
+    0 0 0 4px rgba(239, 68, 68, 0.06),
+    0 0 24px rgba(239, 68, 68, 0.15);
 }
 
 @keyframes gateShake {
   0%, 100% { transform: translateX(0); }
-  15% { transform: translateX(-10px); }
-  30% { transform: translateX(10px); }
-  45% { transform: translateX(-8px); }
-  60% { transform: translateX(8px); }
-  75% { transform: translateX(-4px); }
-  90% { transform: translateX(4px); }
+  15%  { transform: translateX(-12px); }
+  30%  { transform: translateX(12px); }
+  45%  { transform: translateX(-8px); }
+  60%  { transform: translateX(8px); }
+  75%  { transform: translateX(-4px); }
+  90%  { transform: translateX(4px); }
+}
+
+/* 成功状态 */
+.gate-input.success {
+  border-color: rgba(34, 197, 94, 0.5);
+  box-shadow:
+    0 0 0 4px rgba(34, 197, 94, 0.06),
+    0 0 32px rgba(34, 197, 94, 0.2);
 }
 
 /* ---------- 错误提示 ---------- */
 .gate-error {
-  color: var(--danger);
-  font-size: 12px;
-  margin-top: 14px;
-  min-height: 20px;
+  color: #f87171;
+  font-size: 13px;
+  margin-top: 16px;
+  min-height: 22px;
   opacity: 0;
   transition: opacity 0.3s ease, transform 0.3s ease;
-  transform: translateY(-4px);
+  transform: translateY(-6px);
   letter-spacing: 1px;
+  font-weight: 500;
 }
 
 .gate-error.show {
@@ -1665,162 +1577,24 @@ body {
   transform: translateY(0);
 }
 
-/* ---------- 进入按钮 ---------- */
-.gate-enter-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+/* ---------- 密码提示 ---------- */
+.gate-hint {
+  color: var(--text-muted);
+  font-size: 11px;
   margin-top: 20px;
-  padding: 12px 40px;
-  border: none;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #a855f7, #c084fc);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  font-family: var(--font-main);
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow:
-    0 4px 20px rgba(168, 85, 247, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  position: relative;
-  overflow: hidden;
-  letter-spacing: 3px;
+  opacity: 0.4;
+  letter-spacing: 1px;
+  transition: opacity 0.3s ease;
 }
 
-.gate-enter-btn::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 60%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-  transform: skewX(-20deg);
-  transition: none;
-}
-
-.gate-enter-btn:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 8px 32px rgba(168, 85, 247, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.gate-enter-btn:hover::after {
-  animation: gateBtnShine 0.8s ease forwards;
-}
-
-@keyframes gateBtnShine {
-  to { left: 150%; }
-}
-
-.gate-enter-btn:active {
-  transform: scale(0.97) translateY(0);
-}
-
-.gate-enter-btn i {
-  font-size: 14px;
-  transition: transform 0.3s ease;
-}
-
-.gate-enter-btn:hover i {
-  transform: translateX(4px);
-}
-
-/* ---------- 底部装饰线 ---------- */
-.gate-deco {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 28px;
-}
-
-.gate-deco span {
-  width: 30px;
-  height: 2px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  opacity: 0.3;
-  animation: gateDecoPulse 3s ease-in-out infinite;
-}
-
-.gate-deco span:nth-child(2) { animation-delay: 0.5s; width: 20px; }
-.gate-deco span:nth-child(3) { animation-delay: 1s; width: 14px; }
-
-@keyframes gateDecoPulse {
-  0%, 100% { opacity: 0.2; }
-  50% { opacity: 0.5; }
-}
-
-/* ---------- 浮动星星装饰 ---------- */
-.gate-stars {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.gate-stars span {
-  position: absolute;
-  font-size: 12px;
-  color: var(--accent-hover);
-  opacity: 0.3;
-  animation: gateStarFloat 12s ease-in-out infinite;
-  animation-delay: calc(var(--i, 0) * -2s);
-}
-
-.gate-stars span:nth-child(1) { top: 5%; left: 8%; font-size: 14px; }
-.gate-stars span:nth-child(2) { top: 12%; right: 12%; font-size: 10px; }
-.gate-stars span:nth-child(3) { top: 35%; left: 3%; font-size: 16px; }
-.gate-stars span:nth-child(4) { bottom: 25%; right: 5%; font-size: 11px; }
-.gate-stars span:nth-child(5) { bottom: 8%; left: 15%; font-size: 13px; }
-.gate-stars span:nth-child(6) { top: 50%; right: 2%; font-size: 9px; }
-.gate-stars span:nth-child(7) { bottom: 40%; left: 5%; font-size: 15px; }
-
-@keyframes gateStarFloat {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.2; }
-  25% { transform: translate(10px, -15px) rotate(90deg); opacity: 0.5; }
-  50% { transform: translate(-5px, -25px) rotate(180deg); opacity: 0.3; }
-  75% { transform: translate(8px, -10px) rotate(270deg); opacity: 0.4; }
+.gate-hint.hidden {
+  opacity: 0;
 }
 
 /* ---------- 门禁响应式 ---------- */
 @media (max-width: 480px) {
-  .gate-card {
-    padding: 36px 24px 30px;
-    border-radius: 22px;
-  }
-
-  .gate-icon-wrap { width: 64px; height: 64px; margin-bottom: 16px; }
-  .gate-icon { width: 58px; height: 58px; font-size: 22px; border-radius: 18px; }
-  .gate-icon-ring { inset: -6px; }
-
-  .gate-title { font-size: 24px; }
-  .gate-subtitle { font-size: 12px; margin-bottom: 24px; }
-
-  .gate-input { padding: 12px 14px; font-size: 14px; }
-  .gate-input-group { max-width: 220px; }
-
-  .gate-enter-btn { padding: 10px 32px; font-size: 14px; margin-top: 16px; }
-
-  .gate-deco { margin-top: 22px; }
-  .gate-deco span { width: 24px; }
-  .gate-deco span:nth-child(2) { width: 16px; }
-  .gate-deco span:nth-child(3) { width: 12px; }
-
-  .gate-stars span:nth-child(1) { top: 2%; left: 5%; }
-  .gate-stars span:nth-child(2) { top: 8%; right: 8%; }
-  .gate-stars span:nth-child(3) { display: none; }
-  .gate-stars span:nth-child(7) { display: none; }
-}
-
-/* 适配安全区域 */
-@supports (padding: max(0px)) {
-  .gate-overlay {
-    padding-left: max(0px, env(safe-area-inset-left));
-    padding-right: max(0px, env(safe-area-inset-right));
-  }
+  .gate-box { max-width: 280px; padding: 16px; }
+  .gate-input { padding: 14px 16px; font-size: 16px; }
+  .gate-input::placeholder { font-size: 13px; }
+  .gate-error { font-size: 12px; margin-top: 12px; }
 }

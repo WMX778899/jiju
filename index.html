@@ -9,126 +9,84 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Zen+Dots&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* 门禁页专用：全屏粒子背景 */
+    body { margin: 0; overflow: hidden; background: #0b0a12; }
+    #particleCanvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+  </style>
 </head>
 <body>
 
-  <!-- ===== 粒子背景 ===== -->
   <canvas id="particleCanvas"></canvas>
 
-  <!-- ===== 密码门禁 ===== -->
-  <div class="gate-overlay" id="gateOverlay">
-    <div class="gate-container">
-      <div class="gate-card">
-        <div class="gate-card-glow"></div>
-
-        <div class="gate-icon-wrap">
-          <div class="gate-icon" id="gateIcon">
-            <i class="fa-solid fa-lock"></i>
-          </div>
-          <div class="gate-icon-ring"></div>
-        </div>
-
-        <h1 class="gate-title">AniList</h1>
-        <p class="gate-subtitle">追番备忘 · 密钥入口</p>
-
-        <div class="gate-input-group">
-          <input type="password" id="gatePassword" class="gate-input" placeholder="✦ 输入密码" autocomplete="off" spellcheck="false" />
-          <div class="gate-input-line"></div>
-        </div>
-
-        <p class="gate-error" id="gateError">✧ 密码错误，再试一次</p>
-
-        <button class="gate-enter-btn" id="gateEnterBtn">
-          <span>进 入</span>
-          <i class="fa-solid fa-arrow-right-to-bracket"></i>
-        </button>
-
-        <div class="gate-deco">
-          <span></span><span></span><span></span>
-        </div>
+  <div class="gate-wrap" id="gateWrap">
+    <div class="gate-box" id="gateBox">
+      <div class="gate-input-wrap">
+        <input type="password" id="gatePassword" class="gate-input" placeholder="✦ 密码" autocomplete="off" spellcheck="false" />
+        <div class="gate-input-glow"></div>
       </div>
-
-      <div class="gate-stars">
-        <span style="--i:0">✦</span>
-        <span style="--i:1">✧</span>
-        <span style="--i:2">☆</span>
-        <span style="--i:3">♢</span>
-        <span style="--i:4">✦</span>
-        <span style="--i:5">☆</span>
-        <span style="--i:6">✧</span>
-      </div>
+      <p class="gate-error" id="gateError">✧ 密码错误</p>
+      <p class="gate-hint" id="gateHint">按下 Enter 进入</p>
     </div>
   </div>
 
-  <!-- ===== JS ===== -->
   <script src="js/particles.js"></script>
   <script>
     (function() {
       'use strict';
 
-      // ═══════════════════════════════════════════════
-      //   ← 在这里修改你的密码！
-      const GATE_PASSWORD = 'anime2024';
-      // ═══════════════════════════════════════════════
+      const PASSWORD = 'anime2024'; // ← 在这里改密码
 
-      // 启动粒子背景
-      var canvas = document.getElementById('particleCanvas');
-      if (canvas) new ParticleBackground(canvas);
-      createAnimeSilhouettes();
+      // 粒子背景
+      var c = document.getElementById('particleCanvas');
+      if (c) new ParticleBackground(c);
 
       var input = document.getElementById('gatePassword');
-      var btn = document.getElementById('gateEnterBtn');
-      var errorEl = document.getElementById('gateError');
-      var icon = document.getElementById('gateIcon');
+      var error = document.getElementById('gateError');
+      var hint = document.getElementById('gateHint');
+      var wrap = document.getElementById('gateWrap');
 
-      // 已通过 → 直接跳转
+      // 已通过直接跳
       if (sessionStorage.getItem('anilist_gate_passed') === '1') {
         window.location.replace('app.html');
         return;
       }
 
       function tryEnter() {
-        if (input.value === GATE_PASSWORD) {
+        if (input.value === PASSWORD) {
           sessionStorage.setItem('anilist_gate_passed', '1');
-
-          // 解锁动画
-          icon.innerHTML = '<i class="fa-solid fa-lock-open"></i>';
-          icon.style.color = '#22c55e';
-          icon.style.boxShadow = '0 0 40px rgba(34,197,94,0.4)';
-
-          // 延迟跳转
+          hint.classList.add('hidden');
+          input.classList.remove('shake');
+          input.classList.add('success');
+          input.disabled = true;
           setTimeout(function() {
-            window.location.replace('app.html');
-          }, 600);
+            wrap.style.opacity = '0';
+            wrap.style.transition = 'opacity 0.4s ease';
+            setTimeout(function() { window.location.replace('app.html'); }, 400);
+          }, 300);
         } else {
+          input.classList.remove('success');
           input.classList.add('shake');
-          errorEl.classList.add('show');
+          error.classList.add('show');
           input.value = '';
           input.blur();
-          icon.style.color = '#ef4444';
-          icon.style.boxShadow = '0 0 30px rgba(239,68,68,0.3)';
           setTimeout(function() {
             input.classList.remove('shake');
-            icon.style.color = '';
-            icon.style.boxShadow = '';
             input.focus();
           }, 500);
         }
       }
-
-      btn.addEventListener('click', tryEnter);
 
       input.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') { e.preventDefault(); tryEnter(); }
       });
 
       input.addEventListener('input', function() {
-        errorEl.classList.remove('show');
-        icon.style.color = '';
-        icon.style.boxShadow = '';
+        error.classList.remove('show');
+        input.classList.remove('shake');
       });
 
-      setTimeout(function() { input.focus(); }, 900);
+      setTimeout(function() { input.focus(); }, 600);
     })();
   </script>
 </body>
