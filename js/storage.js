@@ -103,7 +103,7 @@ class AnimeDB {
     return { count: entries.length };
   }
 
-  /** 上传数据到 GitHub */
+  /** 上传数据到 GitHub（自动重试） */
   static async pushToGitHub() {
     const cfg = this.getGitHubConfig();
     if (!cfg || !cfg.token || !cfg.repo) throw new Error('未配置 GitHub');
@@ -136,25 +136,41 @@ class AnimeDB {
     };
     if (sha) body.sha = sha;
 
-    const res = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
-      {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${cfg.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
+    // 重试最多 3 次，应对网络不稳定
+    let lastErr;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const res = await fetch(
+          `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
+          {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${cfg.token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          }
+        );
+        clearTimeout(timeout);
+
+        if (res.ok) {
+          const result = await res.json();
+          cfg._sha = result.content.sha;
+          this.saveGitHubConfig(cfg);
+          return { sha: result.content.sha };
+        }
+        lastErr = new Error(`GitHub API 错误: ${res.status}`);
+      } catch (e) {
+        lastErr = e;
+        if (e.name === 'AbortError') lastErr = new Error('连接超时，请检查网络');
       }
-    );
-    if (!res.ok) throw new Error(`GitHub API 错误: ${res.status}`);
-
-    const result = await res.json();
-    // 保存 sha 以便下次增量更新
-    cfg._sha = result.content.sha;
-    this.saveGitHubConfig(cfg);
-
-    return { sha: result.content.sha };
+      // 重试前等待 1 秒
+      if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+    }
+    throw lastErr;
   }
 
   // ===== 同步状态 =====
