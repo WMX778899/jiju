@@ -106,7 +106,6 @@ class AnimeDB {
       watching: this._cache.filter(e => e.status === 'watching').length,
       want_to_watch: this._cache.filter(e => e.status === 'want_to_watch').length,
       completed: this._cache.filter(e => e.status === 'completed').length,
-      on_hold: this._cache.filter(e => e.status === 'on_hold').length,
     };
   }
 
@@ -185,7 +184,7 @@ class AnimeDB {
       id: e.id || this._genId(),
       title: e.title.trim(),
       type: ['anime', 'drama', 'movie'].includes(e.type) ? e.type : 'anime',
-      status: ['watching', 'want_to_watch', 'completed', 'on_hold'].includes(e.status) ? e.status : 'want_to_watch',
+      status: ['watching', 'want_to_watch', 'completed'].includes(e.status) ? e.status : 'want_to_watch',
       rating: Math.min(5, Math.max(0, Number(e.rating) || 0)),
       notes: (e.notes || '').trim(),
       createdAt: e.createdAt || new Date().toISOString(),

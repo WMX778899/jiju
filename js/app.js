@@ -13,14 +13,12 @@ const STATUS_LABELS = {
   watching: '<i class="fa-solid fa-play"></i> 在看',
   want_to_watch: '<i class="fa-regular fa-clock"></i> 想看',
   completed: '<i class="fa-solid fa-check"></i> 看完',
-  on_hold: '<i class="fa-solid fa-pause"></i> 搁置',
 };
 
 const STATUS_CLASSES = {
   watching: 'status-watching',
   want_to_watch: 'status-want_to_watch',
   completed: 'status-completed',
-  on_hold: 'status-on_hold',
 };
 
 /** 格式化日期 */
@@ -460,10 +458,10 @@ class AniListApp {
     this.editingId = null;
     this.deletingId = null;
     this.currentType = 'all';
-    this.currentStatus = 'all';
+    this.currentStatus = 'want_to_watch';
     this.currentSort = 'newest';
     this.searchQuery = '';
-    this.prevStats = { all: 0, watching: 0, want_to_watch: 0, completed: 0, on_hold: 0 };
+    this.prevStats = { all: 0, watching: 0, want_to_watch: 0, completed: 0 };
     /** 待撤销的删除记录 { id -> entryData } */
     this.pendingDeletes = {};
 
@@ -471,6 +469,7 @@ class AniListApp {
     this.initAnimeBg();
     this.initGlowCursor();
     this.cacheDom();
+    this.statusFilter.value = this.currentStatus;
     this.bindEvents();
     this.render();
     // 暴露给全局，用于远程同步时自动刷新
@@ -836,6 +835,11 @@ class AniListApp {
 
   // ===== 渲染 =====
   render() {
+    // 保持容器高度，防止切换时抖动
+    const listContainer = this.listContainer;
+    const prevHeight = listContainer.offsetHeight;
+    if (prevHeight > 0) listContainer.style.minHeight = prevHeight + 'px';
+
     // 获取并筛选数据
     let entries = AnimeDB.search({
       query: this.searchQuery,
@@ -859,6 +863,8 @@ class AniListApp {
       } else {
         this.emptyText.innerHTML = '<i class="fa-solid fa-pen" style="opacity:0.4;margin-right:4px"></i> 还没有记录，点 + 添加吧';
       }
+      // 释放固定高度
+      requestAnimationFrame(() => { listContainer.style.minHeight = '200px'; });
       return;
     }
 
@@ -866,6 +872,9 @@ class AniListApp {
 
     // 渲染卡片
     this.listContainer.innerHTML = entries.map((entry, i) => this.createCard(entry, i)).join('');
+
+    // 卡片渲染完成后释放固定高度
+    requestAnimationFrame(() => { listContainer.style.minHeight = '200px'; });
 
     // 绑定卡片事件（委托）
     this.listContainer.querySelectorAll('.card').forEach((card) => {
@@ -891,7 +900,7 @@ class AniListApp {
 
   renderStats() {
     const stats = AnimeDB.getStats();
-    const statMap = { all: 'statAll', watching: 'statWatching', want_to_watch: 'statWant', completed: 'statCompleted', on_hold: 'statHold' };
+    const statMap = { all: 'statAll', watching: 'statWatching', want_to_watch: 'statWant', completed: 'statCompleted' };
 
     for (const [key, id] of Object.entries(statMap)) {
       const el = this.$(id);
