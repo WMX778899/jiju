@@ -1,7 +1,16 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-21T13:58:38.959Z",
+  "updatedAt": "2026-07-21T13:59:40.885Z",
   "entries": [
+    {
+      "id": "mrupzu519ppdpb",
+      "title": "2312",
+      "type": "movie",
+      "status": "watching",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-21T13:59:40.885Z"
+    },
     {
       "id": "000037rvthzf26",
       "title": "零之使魔",
