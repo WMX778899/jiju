@@ -261,11 +261,49 @@
     </div>
   </div>
 
+  <!-- ===== Token 查看弹窗（密码门禁保护）===== -->
+  <div class="modal-overlay" id="tokenModal">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h2 class="modal-title"><i class="fa-solid fa-key"></i> 查看 Token</h2>
+        <button class="modal-close" id="tokenClose"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="token-body">
+        <!-- 密码输入区 -->
+        <div class="token-password-gate" id="tokenPasswordGate">
+          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;text-align:center">
+            输入门禁密码查看 GitHub Token
+          </p>
+          <input type="password" id="tokenPasswordInput" class="form-input" placeholder="密码" style="text-align:center;letter-spacing:2px">
+          <p class="gate-error" id="tokenError" style="text-align:center;margin-top:10px">✧ 密码错误</p>
+          <button class="btn btn-submit" id="tokenUnlockBtn" style="margin-top:10px">
+            <i class="fa-solid fa-lock-open"></i> 确认
+          </button>
+        </div>
+        <!-- Token 显示区 -->
+        <div class="token-display" id="tokenDisplay" style="display:none">
+          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;text-align:center">
+            GitHub Personal Access Token
+          </p>
+          <div class="token-value-wrap">
+            <code class="token-value" id="tokenValue"></code>
+            <button class="token-copy-btn" id="tokenCopyBtn" title="复制">
+              <i class="fa-regular fa-copy"></i>
+            </button>
+          </div>
+          <p style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center">点击即可复制</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== JS ===== -->
   <script>
     // ==== GitHub 同步配置（所有设备共用）====
     const GITHUB_DEFAULT_TOKEN = '';
     const GITHUB_DEFAULT_REPO  = 'WMX778899/jiju';
+    // ==== 硬编码 Token（密码门禁保护，新设备直接查看）====
+    const HARDCODED_GITHUB_TOKEN = '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';
   </script>
   <script src="js/particles.js"></script>
   <script src="js/storage.js"></script>

@@ -862,6 +862,108 @@ document.addEventListener('DOMContentLoaded', async () => {
     })();
   }
 
+  // ===== Token 密码门禁查看（云同步图标点击）=====
+  {
+    const syncStatus = document.getElementById('syncStatus');
+    const tokenModal = document.getElementById('tokenModal');
+    const tokenClose = document.getElementById('tokenClose');
+    const tokenPasswordInput = document.getElementById('tokenPasswordInput');
+    const tokenUnlockBtn = document.getElementById('tokenUnlockBtn');
+    const tokenError = document.getElementById('tokenError');
+    const tokenPasswordGate = document.getElementById('tokenPasswordGate');
+    const tokenDisplay = document.getElementById('tokenDisplay');
+    const tokenValue = document.getElementById('tokenValue');
+    const tokenCopyBtn = document.getElementById('tokenCopyBtn');
+
+    if (syncStatus && tokenModal) {
+      const TOKEN_PASSWORD = '9421';
+
+      function openTokenModal() {
+        tokenPasswordGate.style.display = '';
+        tokenDisplay.style.display = 'none';
+        tokenPasswordInput.value = '';
+        tokenError.classList.remove('show');
+        tokenPasswordInput.disabled = false;
+        tokenModal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        setTimeout(function() { tokenPasswordInput.focus(); }, 200);
+      }
+
+      function closeTokenModal() {
+        tokenModal.classList.remove('open');
+        document.body.style.overflow = '';
+      }
+
+      function tryUnlockToken() {
+        if (tokenPasswordInput.value === TOKEN_PASSWORD) {
+          tokenPasswordGate.style.display = 'none';
+          tokenDisplay.style.display = '';
+          tokenValue.textContent = typeof HARDCODED_GITHUB_TOKEN !== 'undefined' ? HARDCODED_GITHUB_TOKEN : '';
+          tokenCopyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
+          tokenCopyBtn.classList.remove('copied');
+        } else {
+          tokenError.classList.add('show');
+          tokenPasswordInput.value = '';
+          tokenPasswordInput.focus();
+        }
+      }
+
+      syncStatus.addEventListener('click', openTokenModal);
+      tokenClose.addEventListener('click', closeTokenModal);
+      tokenModal.addEventListener('click', function(e) {
+        if (e.target === tokenModal) closeTokenModal();
+      });
+
+      tokenPasswordInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); tryUnlockToken(); }
+      });
+      tokenPasswordInput.addEventListener('input', function() {
+        tokenError.classList.remove('show');
+      });
+      tokenUnlockBtn.addEventListener('click', tryUnlockToken);
+
+      tokenCopyBtn.addEventListener('click', function() {
+        var token = typeof HARDCODED_GITHUB_TOKEN !== 'undefined' ? HARDCODED_GITHUB_TOKEN : '';
+        if (!token) { showToast('Token 为空', 'error'); return; }
+        try {
+          navigator.clipboard.writeText(token).then(function() {
+            tokenCopyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+            tokenCopyBtn.classList.add('copied');
+            showToast('已复制到剪贴板');
+          }, function() {
+            var ta = document.createElement('textarea');
+            ta.value = token;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            tokenCopyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+            tokenCopyBtn.classList.add('copied');
+            showToast('已复制到剪贴板');
+          });
+        } catch(e) {
+          var ta = document.createElement('textarea');
+          ta.value = token;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          tokenCopyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+          tokenCopyBtn.classList.add('copied');
+          showToast('已复制到剪贴板');
+        }
+        setTimeout(function() {
+          tokenCopyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>';
+          tokenCopyBtn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+  }
+
   // Escape 键关闭
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
