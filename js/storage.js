@@ -1,7 +1,7 @@
-﻿/**
- * AnimeDB - 绾簯绔瓨鍌ㄥ眰
- * 鏁版嵁鍏ㄩ儴鍦?GitHub 浠撳簱 data.json锛屼笉瀛?localStorage
- * 鎵€鏈夎澶囩湅鍒板悓涓€浠芥暟鎹?
+/**
+ * AnimeDB - 纯云端存储层
+ * 数据全部在 GitHub 仓库 data.json，不存 localStorage
+ * 所有设备看到同一份数据
  */
 
 function _utf8ToBase64(str) {
@@ -12,20 +12,17 @@ function _utf8ToBase64(str) {
 }
 
 class AnimeDB {
-  /** 鍐呭瓨缂撳瓨锛堜竴娆′細璇濇湁鏁堬級 */
+  /** 内存缓存（一次会话有效） */
   static _cache = [];
   static _loaded = false;
   static _repo = 'WMX778899/jiju';
 
-  /** localStorage 澶囦唤閿悕 */
-  static BACKUP_KEY = 'anilist_backup';
-
-  /** 鍚屾鐘舵€佸洖璋?*/
+  /** 同步状态回调 */
   static _syncListeners = [];
   static _syncStatus = 'local';
   static _undoPushTimer = null;
 
-  // ===== 鍒濆鍖栵細浠?GitHub 鎷夊彇鏈€鏂版暟鎹?=====
+  // ===== 初始化：从 GitHub 拉取最新数据 =====
   static async init(repoOverride) {
     const repo = repoOverride || this._repo;
     if (!repo) { this._loaded = true; return this._cache; }
@@ -35,8 +32,8 @@ class AnimeDB {
     const headers = {};
     if (cfg && cfg.token) headers['Authorization'] = `Bearer ${cfg.token}`;
 
-    // 鍏堝皾璇?GitHub API锛堝疄鏃讹級
-    // 濡傛灉澶辫触鍒?fallback 鍒?raw CDN锛堝彲鑳芥湁缂撳瓨寤惰繜锛?
+    // 先尝试 GitHub API（实时）
+    // 如果失败则 fallback 到 raw CDN（可能有缓存延迟）
     let data = null;
     try {
       const res = await fetch(
@@ -54,9 +51,9 @@ class AnimeDB {
         data = JSON.parse(decoded);
         if (cfg && cfg.token) { cfg._sha = d.sha; this.saveGitHubConfig(cfg); }
       }
-    } catch { /* API 涓嶉€氾紝璧?CDN 澶囬€?*/ }
+    } catch { /* API 不通，走 CDN 备选 */ }
 
-    // API 澶辫触鏃跺皾璇曞涓?CDN 澶囬€?
+    // API 失败时尝试多个 CDN 备选
     const cdns = [
       `https://raw.githubusercontent.com/${owner}/${name}/main/data.json`,
       `https://cdn.jsdelivr.net/gh/${owner}/${name}@main/data.json`,
@@ -73,30 +70,21 @@ class AnimeDB {
       const entries = Array.isArray(data) ? data : (data.entries || []);
       this._cache = entries;
       this._repo = repo;
-      this._setStatus(data ? 'connected' : 'local', data ? '浜戠' : '鏈湴');
+      this._setStatus(data ? 'connected' : 'local', data ? '云端' : '本地');
     } else {
-      // 浜戠鍏ㄤ笉鍙揪鏃讹紝浠?localStorage 澶囦唤鎭㈠
-      try {
-        const backup = localStorage.getItem(this.BACKUP_KEY);
-        if (backup) {
-          const parsed = JSON.parse(backup);
-          const entries = Array.isArray(parsed) ? parsed : (parsed.entries || []);
-          if (entries.length > 0) { this._cache = entries; }
-        }
-      } catch {}
-      this._setStatus('local', '鏈湴');
+      this._setStatus('local', '本地');
     }
 
     this._loaded = true;
     return this._cache;
   }
 
-  /** 纭繚宸插垵濮嬪寲 */
+  /** 确保已初始化 */
   static _ensureLoaded() {
-    if (!this._loaded) throw new Error('鏁版嵁灏氭湭鍔犺浇锛岃鍏堣皟鐢?init()');
+    if (!this._loaded) throw new Error('数据尚未加载，请先调用 init()');
   }
 
-  // ===== GitHub 閰嶇疆锛堜粎 token/repo 瀛?localStorage锛?====
+  // ===== GitHub 配置（仅 token/repo 存 localStorage）=====
   static GITHUB_CONFIG_KEY = 'anilist_github_config';
 
   static getGitHubConfig() {
@@ -110,7 +98,7 @@ class AnimeDB {
     localStorage.setItem(this.GITHUB_CONFIG_KEY, JSON.stringify(config));
   }
 
-  // ===== 璇诲彇 =====
+  // ===== 读取 =====
   static getAll() {
     this._ensureLoaded();
     return [...this._cache];
@@ -140,7 +128,7 @@ class AnimeDB {
     };
   }
 
-  // ===== 鍐欏叆 =====
+  // ===== 写入 =====
   static add({ title, type = 'anime', status = 'want_to_watch', rating = 0, notes = '' }) {
     this._ensureLoaded();
     const entry = {
@@ -153,7 +141,6 @@ class AnimeDB {
       createdAt: new Date().toISOString(),
     };
     this._cache.unshift(entry);
-    this._backupToLocal();
     this._pushAfterChange();
     return entry;
   }
@@ -172,7 +159,6 @@ class AnimeDB {
         this._cache[idx][key] = val;
       }
     }
-    this._backupToLocal();
     this._pushAfterChange();
     return this._cache[idx];
   }
@@ -182,9 +168,8 @@ class AnimeDB {
     const idx = this._cache.findIndex(e => e.id === id);
     if (idx === -1) return false;
     this._cache.splice(idx, 1);
-    this._backupToLocal();
-    this._pushToGithub(false);  // 绔嬪嵆鎺紝鏄剧ず缁撴灉
-    this.scheduleUndoPush();   // 5 鍒嗛挓鍚庝簩娆＄‘璁?
+    this._pushToGithub(false);  // 立即推，显示结果
+    this.scheduleUndoPush();   // 5 分钟后二次确认
     return true;
   }
 
@@ -193,13 +178,12 @@ class AnimeDB {
     if (!entry || !entry.id) return null;
     if (this._cache.some(e => e.id === entry.id)) return entry;
     this._cache.unshift(entry);
-    this._backupToLocal();
     this.cancelUndoPush();
     this._pushToGithub(false);
     return entry;
   }
 
-  // ===== 瀵煎嚭 / 瀵煎叆 =====
+  // ===== 导出 / 导入 =====
   static exportData() {
     this._ensureLoaded();
     return JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), entries: this._cache }, null, 2);
@@ -208,13 +192,13 @@ class AnimeDB {
   static importData(jsonStr) {
     this._ensureLoaded();
     let parsed;
-    try { parsed = JSON.parse(jsonStr); } catch { throw new Error('JSON 鏍煎紡閿欒'); }
+    try { parsed = JSON.parse(jsonStr); } catch { throw new Error('JSON 格式错误'); }
     let entries;
     if (Array.isArray(parsed)) entries = parsed;
     else if (parsed && Array.isArray(parsed.entries)) entries = parsed.entries;
-    else throw new Error('鏁版嵁鏍煎紡涓嶆纭?);
+    else throw new Error('数据格式不正确');
     entries = entries.filter(e => e && e.title && e.title.trim());
-    if (entries.length === 0) throw new Error('娌℃湁鎵惧埌鏈夋晥鐨勬潯鐩暟鎹?);
+    if (entries.length === 0) throw new Error('没有找到有效的条目数据');
     entries = entries.map(e => ({
       id: e.id || this._genId(),
       title: e.title.trim(),
@@ -229,33 +213,24 @@ class AnimeDB {
     return entries.length;
   }
 
-  // ===== 鏈湴澶囦唤锛堢綉缁滀笉閫氭椂鍒锋柊涓嶄涪鏁版嵁锛?====
-  static _backupToLocal() {
-    try {
-      localStorage.setItem(this.BACKUP_KEY, JSON.stringify({
-        version: 1, updatedAt: new Date().toISOString(), entries: this._cache
-      }));
-    } catch {}
-  }
-
-  // ===== 浜戠鎺ㄩ€佹牳蹇?=====
-  /** 鎵嬪姩鎺ㄩ€侊紙鏄剧ず缁撴灉锛?*/
+  // ===== 云端推送核心 =====
+  /** 手动推送（显示结果） */
   static async push() {
     this._ensureLoaded();
     await this._pushToGithub(false);
   }
 
   static _pushAfterChange() {
-    // 涓嶉潤榛樷€斺€攑ush 澶辫触瑕佸憡鐭ョ敤鎴凤紝鍚﹀垯鍒锋柊鏁版嵁灏变涪浜?
+    // 不静默——push 失败要告知用户，否则刷新数据就丢了
     this._pushToGithub(false).catch(() => {});
   }
 
   static async _pushToGithub(silent) {
     const cfg = this.getGitHubConfig();
     if (!cfg || !cfg.token || !cfg.repo) {
-      // 娌℃湁 token 鏃朵竴瀹氳鎻愮ず鈥斺€斿惁鍒欑敤鎴蜂笉鐭ラ亾鏁版嵁娌′繚瀛?
+      // 没有 token 时一定要提示——否则用户不知道数据没保存
       if (typeof showToast === 'function') {
-        showToast('鈿狅笍 鏈厤缃?Token锛岀偣鍙充笂瑙?GitHub 鍥炬爣閰嶇疆', 'error');
+        showToast('⚠️ 未配置 Token，点右上角 GitHub 图标配置', 'error');
       }
       this._setStatus('error');
       return;
@@ -266,7 +241,7 @@ class AnimeDB {
       JSON.stringify({ version: 1, updatedAt: new Date().toISOString(), entries: this._cache }, null, 2)
     );
 
-    // 姣忔鎺ㄩ€佸墠閲嶆柊鑾峰彇鏈€鏂?sha锛堜笉渚濊禆鍙兘杩囨湡鐨勭紦瀛橈級
+    // 每次推送前重新获取最新 sha（不依赖可能过期的缓存）
     async function fetchLatestSha() {
       try {
         const r = await fetch(
@@ -281,9 +256,9 @@ class AnimeDB {
     let lastErr;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        // 姣忔灏濊瘯閮借幏鍙栨渶鏂?sha锛岄伩鍏?409
+        // 每次尝试都获取最新 sha，避免 409
         const sha = await fetchLatestSha();
-        const body = { message: '馃摑 AniList 鏁版嵁鍚屾', content };
+        const body = { message: '📝 AniList 数据同步', content };
         if (sha) body.sha = sha;
 
         const controller = new AbortController();
@@ -303,12 +278,12 @@ class AnimeDB {
           const r = await res.json();
           cfg._sha = r.content.sha;
           this.saveGitHubConfig(cfg);
-          this._setStatus('connected', '浜戠');
-          if (!silent && typeof showToast === 'function') showToast('鈽侊笍 宸插悓姝ュ埌浜戠');
+          this._setStatus('connected', '云端');
+          if (!silent && typeof showToast === 'function') showToast('☁️ 已同步到云端');
           return;
         }
 
-        // 409 鈫?sha 宸茶繃鏈燂紝涓嬫寰幆閲嶆柊鑾峰彇
+        // 409 → sha 已过期，下次循环重新获取
         if (res.status === 409) {
           await new Promise(r => setTimeout(r, 1500));
           continue;
@@ -323,12 +298,12 @@ class AnimeDB {
 
     this._setStatus('error');
     if (!silent && typeof showToast === 'function') {
-      showToast('鉂?鍚屾澶辫触: ' + (lastErr ? lastErr.message : '缃戠粶閿欒'), 'error');
+      showToast('❌ 同步失败: ' + (lastErr ? lastErr.message : '网络错误'), 'error');
     }
-    throw lastErr || new Error('鍚屾澶辫触');
+    throw lastErr || new Error('同步失败');
   }
 
-  // ===== 鎾ら攢瀹氭椂鍣?=====
+  // ===== 撤销定时器 =====
   static scheduleUndoPush() {
     this.cancelUndoPush();
     this._undoPushTimer = setTimeout(() => {
@@ -341,7 +316,7 @@ class AnimeDB {
     if (this._undoPushTimer) { clearTimeout(this._undoPushTimer); this._undoPushTimer = null; }
   }
 
-  // ===== 宸ュ叿 =====
+  // ===== 工具 =====
   static _genId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
@@ -360,4 +335,3 @@ class AnimeDB {
     this._syncListeners.forEach(fn => { try { fn(this._syncStatus); } catch {} });
   }
 }
-
