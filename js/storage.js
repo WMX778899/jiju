@@ -53,13 +53,15 @@ class AnimeDB {
       }
     } catch { /* API 不通，走 CDN 备选 */ }
 
-    // API 失败时尝试 raw CDN
-    if (!data) {
+    // API 失败时尝试多个 CDN 备选
+    const cdns = [
+      `https://raw.githubusercontent.com/${owner}/${name}/main/data.json`,
+      `https://cdn.jsdelivr.net/gh/${owner}/${name}@main/data.json`,
+    ];
+    for (const url of cdns) {
+      if (data) break;
       try {
-        const res = await fetch(
-          `https://raw.githubusercontent.com/${owner}/${name}/main/data.json`,
-          { cache: 'no-cache' }
-        );
+        const res = await fetch(url, { cache: 'no-cache' });
         if (res.ok) data = await res.json();
       } catch {}
     }
