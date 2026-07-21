@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AniList · 追番清单</title>
+  <title>AniList · 入口</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Zen+Dots&display=swap" rel="stylesheet">
@@ -12,14 +12,15 @@
 </head>
 <body>
 
+  <!-- ===== 粒子背景 ===== -->
+  <canvas id="particleCanvas"></canvas>
+
   <!-- ===== 密码门禁 ===== -->
   <div class="gate-overlay" id="gateOverlay">
     <div class="gate-container">
       <div class="gate-card">
-        <!-- 顶部光晕 -->
         <div class="gate-card-glow"></div>
 
-        <!-- 锁图标 -->
         <div class="gate-icon-wrap">
           <div class="gate-icon" id="gateIcon">
             <i class="fa-solid fa-lock"></i>
@@ -27,32 +28,26 @@
           <div class="gate-icon-ring"></div>
         </div>
 
-        <!-- 标题 -->
         <h1 class="gate-title">AniList</h1>
         <p class="gate-subtitle">追番备忘 · 密钥入口</p>
 
-        <!-- 输入区域 -->
         <div class="gate-input-group">
           <input type="password" id="gatePassword" class="gate-input" placeholder="✦ 输入密码" autocomplete="off" spellcheck="false" />
           <div class="gate-input-line"></div>
         </div>
 
-        <!-- 错误提示 -->
         <p class="gate-error" id="gateError">✧ 密码错误，再试一次</p>
 
-        <!-- 进入按钮 -->
         <button class="gate-enter-btn" id="gateEnterBtn">
           <span>进 入</span>
           <i class="fa-solid fa-arrow-right-to-bracket"></i>
         </button>
 
-        <!-- 底部装饰线 -->
         <div class="gate-deco">
           <span></span><span></span><span></span>
         </div>
       </div>
 
-      <!-- 浮动星星装饰 -->
       <div class="gate-stars">
         <span style="--i:0">✦</span>
         <span style="--i:1">✧</span>
@@ -64,261 +59,9 @@
       </div>
     </div>
   </div>
-  <!-- ===== 门禁结束 ===== -->
-
-  <!-- ===== 背景粒子画布 ===== -->
-  <canvas id="particleCanvas"></canvas>
-
-  <!-- ===== 主容器 ===== -->
-  <div class="app-container">
-
-    <!-- ===== 头部 ===== -->
-    <header class="app-header">
-      <div class="header-content">
-        <div class="header-brand">
-          <span class="header-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-          <h1 class="header-title">AniList</h1>
-          <span class="header-subtitle">追番备忘</span>
-        </div>
-        <div class="header-actions">
-          <button class="header-btn" id="exportBtn" title="导出数据">
-            <i class="fa-solid fa-download"></i>
-          </button>
-          <button class="header-btn" id="importBtn" title="导入数据">
-            <i class="fa-solid fa-upload"></i>
-          </button>
-          <input type="file" id="importFileInput" accept=".json" style="display:none">
-          <button class="header-btn" id="githubBtn" title="GitHub 云同步">
-            <i class="fa-brands fa-github"></i>
-          </button>
-          <button class="header-btn" id="resetBtn" title="重置所有数据">
-            <i class="fa-solid fa-arrow-rotate-left"></i>
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <!-- ===== 筛选栏 ===== -->
-    <section class="filter-bar">
-      <div class="filter-group">
-        <div class="filter-select-wrapper">
-          <select id="typeFilter" class="filter-select">
-            <option value="all">全部类型</option>
-            <option value="anime">🎥 动漫</option>
-            <option value="drama">📺 剧集</option>
-            <option value="movie">🎬 电影</option>
-          </select>
-        </div>
-        <div class="filter-select-wrapper">
-          <select id="statusFilter" class="filter-select">
-            <option value="all">全部状态</option>
-            <option value="watching">▶ 在看</option>
-            <option value="want_to_watch">⏳ 想看</option>
-            <option value="completed">✅ 看完</option>
-          </select>
-        </div>
-        <div class="filter-select-wrapper">
-          <select id="sortSelect" class="filter-select">
-            <option value="newest">最新添加</option>
-            <option value="oldest">最早添加</option>
-            <option value="title">名称排序</option>
-            <option value="rating">评分最高</option>
-          </select>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===== 统计栏 ===== -->
-    <section class="stats-bar" id="statsBar">
-      <div class="stat-item" data-status="want_to_watch">
-        <span class="stat-count" id="statWant">0</span>
-        <span class="stat-label"><i class="fa-regular fa-clock" style="color:var(--want-color)"></i> 想看</span>
-      </div>
-      <div class="stat-item" data-status="watching">
-        <span class="stat-count" id="statWatching">0</span>
-        <span class="stat-label"><i class="fa-solid fa-play" style="color:var(--watching-color)"></i> 在看</span>
-      </div>
-      <div class="stat-item" data-status="completed">
-        <span class="stat-count" id="statCompleted">0</span>
-        <span class="stat-label"><i class="fa-solid fa-check" style="color:var(--completed-color)"></i> 看完</span>
-      </div>
-      <div class="stat-item" data-status="all">
-        <span class="stat-count" id="statAll">0</span>
-        <span class="stat-label"><i class="fa-solid fa-border-all"></i> 全部</span>
-      </div>
-    </section>
-
-    <!-- ===== 搜索 ===== -->
-    <div class="search-row" id="searchRow">
-      <div class="stat-search-wrap">
-        <input type="text" class="stat-search" id="globalSearch" placeholder="搜">
-        <i class="fa-solid fa-search"></i>
-      </div>
-    </div>
-
-    <!-- ===== 列表区 ===== -->
-    <main class="list-container" id="listContainer">
-      <!-- 卡片由 JS 动态渲染 -->
-    </main>
-
-    <!-- ===== 空状态 ===== -->
-    <div class="empty-state" id="emptyState">
-      <div class="empty-icon"><i class="fa-solid fa-list"></i></div>
-      <p class="empty-text" id="emptyText">还没有记录，点 + 添加吧</p>
-    </div>
-
-  </div>
-
-  <!-- ===== 浮动添加按钮 ===== -->
-  <button class="fab" id="fabAdd" title="添加新条目">
-    <i class="fas fa-plus"></i>
-  </button>
-
-  <!-- ===== 模态框（添加/编辑） ===== -->
-  <div class="modal-overlay" id="formModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 class="modal-title" id="modalTitle">添加条目</h2>
-        <button class="modal-close" id="modalClose"><i class="fas fa-times"></i></button>
-      </div>
-      <form class="anime-form" id="animeForm">
-        <input type="hidden" id="formId">
-
-        <div class="form-group">
-          <label class="form-label" for="formTitle">名称 *</label>
-          <input type="text" id="formTitle" class="form-input" placeholder="输入名称…" required maxlength="100">
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="formType">类型</label>
-            <div class="form-select-wrapper">
-              <select id="formType" class="form-select">
-                <option value="anime">🎥 动漫</option>
-                <option value="drama">📺 剧集</option>
-                <option value="movie">🎬 电影</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="formStatus">状态</label>
-            <div class="form-select-wrapper">
-              <select id="formStatus" class="form-select">
-                <option value="watching">▶ 在看</option>
-                <option value="want_to_watch">⏳ 想看</option>
-                <option value="completed">✅ 看完</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">评分</label>
-          <div class="star-rating" id="starRating">
-            <span class="star" data-value="1">☆</span>
-            <span class="star" data-value="2">☆</span>
-            <span class="star" data-value="3">☆</span>
-            <span class="star" data-value="4">☆</span>
-            <span class="star" data-value="5">☆</span>
-          </div>
-          <input type="hidden" id="formRating" value="0">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="formNotes">备注</label>
-          <textarea id="formNotes" class="form-textarea" placeholder="写下你的感想…" rows="3" maxlength="500"></textarea>
-        </div>
-
-        <div class="form-actions">
-          <button type="button" class="btn btn-cancel" id="formCancel">取消</button>
-          <button type="submit" class="btn btn-submit" id="formSubmit">
-            <i class="fas fa-check"></i> 保存
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ===== 删除确认弹窗 ===== -->
-  <div class="modal-overlay" id="deleteModal">
-    <div class="modal-content modal-sm">
-      <div class="modal-header">
-        <h2 class="modal-title">确认删除</h2>
-        <button class="modal-close" id="deleteClose"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="delete-body">
-        <div class="delete-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-        <p class="delete-text">确定要删除 <strong id="deleteTitle">此条目</strong> 吗？</p>
-        <p class="delete-hint">此操作可撤销 · 10秒内有效</p>
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-cancel" id="deleteCancel">取消</button>
-        <button type="button" class="btn btn-danger" id="deleteConfirm">
-          <i class="fas fa-trash"></i> 删除
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== Toast 消息 ===== -->
-  <div class="toast-container" id="toastContainer"></div>
-
-  <!-- ===== 同步状态指示器（右上角） ===== -->
-  <div class="sync-status" id="syncStatus" title="数据同步状态">
-    <i class="fa-solid fa-cloud"></i>
-    <span id="syncText">本地</span>
-  </div>
-
-  <!-- ===== GitHub 同步配置弹窗 ===== -->
-  <div class="modal-overlay" id="githubModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 class="modal-title"><i class="fa-brands fa-github"></i> GitHub 云同步</h2>
-        <button class="modal-close" id="githubClose"><i class="fas fa-times"></i></button>
-      </div>
-      <form class="anime-form" id="githubForm">
-        <div class="form-group">
-          <label class="form-label">Personal Access Token</label>
-          <input type="password" id="githubToken" class="form-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" maxlength="100">
-          <span style="font-size:11px;color:var(--text-muted);margin-top:2px">
-            需要 <code>public_repo</code> 权限 ·
-            <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--accent)">去创建 →</a>
-          </span>
-        </div>
-        <div class="form-group">
-          <label class="form-label">仓库 (owner/repo)</label>
-          <input type="text" id="githubRepo" class="form-input" placeholder="WMX778899/jiju" maxlength="100">
-        </div>
-
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button type="button" class="btn btn-submit" id="githubPushBtn" style="flex:1;white-space:nowrap">
-            <i class="fa-solid fa-upload"></i> 上传到云端
-          </button>
-          <button type="button" class="btn btn-cancel" id="githubPullBtn" style="flex:1;white-space:nowrap">
-            <i class="fa-solid fa-download"></i> 从云端下载
-          </button>
-        </div>
-
-        <div id="githubStatus" style="font-size:12px;color:var(--text-muted);text-align:center;padding:4px 0"></div>
-
-        <div class="form-actions">
-          <button type="button" class="btn btn-cancel" id="githubCancel">关闭</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
   <!-- ===== JS ===== -->
-  <script>
-    // ==== GitHub 同步配置（所有设备共用）====
-    // 换电脑/浏览器也不用重新填，部署一次全生效
-    const GITHUB_DEFAULT_TOKEN = '';  // 每个浏览器填一次，自动保存在本地
-    const GITHUB_DEFAULT_REPO  = 'WMX778899/jiju';  // ← 你的仓库名
-  </script>
-  <script src="js/storage.js"></script>
-  <script src="js/app.js"></script>
-
-  <!-- ===== 密码门禁逻辑 ===== -->
+  <script src="js/particles.js"></script>
   <script>
     (function() {
       'use strict';
@@ -328,44 +71,40 @@
       const GATE_PASSWORD = 'anime2024';
       // ═══════════════════════════════════════════════
 
-      var gate = document.getElementById('gateOverlay');
+      // 启动粒子背景
+      var canvas = document.getElementById('particleCanvas');
+      if (canvas) new ParticleBackground(canvas);
+      createAnimeSilhouettes();
+
       var input = document.getElementById('gatePassword');
       var btn = document.getElementById('gateEnterBtn');
       var errorEl = document.getElementById('gateError');
       var icon = document.getElementById('gateIcon');
 
-      // 本会话已通过 → 直接隐藏门禁
+      // 已通过 → 直接跳转
       if (sessionStorage.getItem('anilist_gate_passed') === '1') {
-        gate.style.display = 'none';
+        window.location.replace('app.html');
         return;
       }
 
-      /** 尝试进入 */
       function tryEnter() {
         if (input.value === GATE_PASSWORD) {
-          // 成功：存储会话标记
           sessionStorage.setItem('anilist_gate_passed', '1');
 
-          // 锁图标解锁动画
+          // 解锁动画
           icon.innerHTML = '<i class="fa-solid fa-lock-open"></i>';
           icon.style.color = '#22c55e';
           icon.style.boxShadow = '0 0 40px rgba(34,197,94,0.4)';
 
-          // 门禁淡出
-          gate.classList.add('gate-passed');
+          // 延迟跳转
           setTimeout(function() {
-            gate.style.display = 'none';
-            // 聚焦到搜索框
-            var search = document.getElementById('globalSearch');
-            if (search) setTimeout(function() { search.focus(); }, 300);
-          }, 800);
+            window.location.replace('app.html');
+          }, 600);
         } else {
-          // 失败：抖动 + 错误提示
           input.classList.add('shake');
           errorEl.classList.add('show');
           input.value = '';
           input.blur();
-          // 锁图标错误闪烁
           icon.style.color = '#ef4444';
           icon.style.boxShadow = '0 0 30px rgba(239,68,68,0.3)';
           setTimeout(function() {
@@ -377,25 +116,19 @@
         }
       }
 
-      // 按钮点击
       btn.addEventListener('click', tryEnter);
 
-      // 回车键
       input.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') { e.preventDefault(); tryEnter(); }
       });
 
-      // 输入时隐藏错误
       input.addEventListener('input', function() {
         errorEl.classList.remove('show');
         icon.style.color = '';
         icon.style.boxShadow = '';
       });
 
-      // 自动聚焦（延迟等动画完成）
       setTimeout(function() { input.focus(); }, 900);
-
-      // 点击门禁外部不关闭（必须输入密码）
     })();
   </script>
 </body>
