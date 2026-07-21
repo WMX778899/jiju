@@ -1,19 +1,19 @@
-/**
- * AniList 主应用逻辑
- * 处理 UI 渲染、事件绑定、交互
+﻿/**
+ * AniList 涓诲簲鐢ㄩ€昏緫
+ * 澶勭悊 UI 娓叉煋銆佷簨浠剁粦瀹氥€佷氦浜?
  */
 
 // ============================================================
-// 工具函数
+// 宸ュ叿鍑芥暟
 // ============================================================
 
 const TYPE_ICONS = { anime: 'tv', drama: 'clapperboard', movie: 'film' };
-const TYPE_LABELS = { anime: '动漫', drama: '剧集', movie: '电影' };
+const TYPE_LABELS = { anime: '鍔ㄦ极', drama: '鍓ч泦', movie: '鐢靛奖' };
 const STATUS_LABELS = {
-  watching: '<i class="fa-solid fa-play"></i> 在看',
-  want_to_watch: '<i class="fa-regular fa-clock"></i> 想看',
-  completed: '<i class="fa-solid fa-check"></i> 看完',
-  on_hold: '<i class="fa-solid fa-pause"></i> 搁置',
+  watching: '<i class="fa-solid fa-play"></i> 鍦ㄧ湅',
+  want_to_watch: '<i class="fa-regular fa-clock"></i> 鎯崇湅',
+  completed: '<i class="fa-solid fa-check"></i> 鐪嬪畬',
+  on_hold: '<i class="fa-solid fa-pause"></i> 鎼佺疆',
 };
 
 const STATUS_CLASSES = {
@@ -23,7 +23,7 @@ const STATUS_CLASSES = {
   on_hold: 'status-on_hold',
 };
 
-/** 格式化日期 */
+/** 鏍煎紡鍖栨棩鏈?*/
 function formatDate(isoStr) {
   if (!isoStr) return '';
   const d = new Date(isoStr);
@@ -31,16 +31,16 @@ function formatDate(isoStr) {
   const diffMs = now - d;
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays < 1) return '今天';
-  if (diffDays === 1) return '昨天';
-  if (diffDays < 7) return `${diffDays}天前`;
+  if (diffDays < 1) return '浠婂ぉ';
+  if (diffDays === 1) return '鏄ㄥぉ';
+  if (diffDays < 7) return `${diffDays}澶╁墠`;
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
-/** 排序函数 */
+/** 鎺掑簭鍑芥暟 */
 function sortEntries(entries, sortBy) {
   const sorted = [...entries];
   switch (sortBy) {
@@ -61,7 +61,7 @@ function sortEntries(entries, sortBy) {
   return sorted;
 }
 
-/** 显示 Toast 消息 */
+/** 鏄剧ず Toast 娑堟伅 */
 function showToast(message, type = 'success') {
   const container = document.getElementById('toastContainer');
   const toast = document.createElement('div');
@@ -71,17 +71,17 @@ function showToast(message, type = 'success') {
   setTimeout(() => toast.remove(), 3000);
 }
 
-/** 撤销 Toast 定时器管理 */
+/** 鎾ら攢 Toast 瀹氭椂鍣ㄧ鐞?*/
 const _undoTimers = new Map();
 
 /**
- * 显示带撤销按钮的 Toast
- * @param {string} entryId - 被删除条目的 ID
- * @param {Function} onUndo - 点击撤销时的回调
- * @param {Function} onExpire - 超时未撤销时的清理回调
+ * 鏄剧ず甯︽挙閿€鎸夐挳鐨?Toast
+ * @param {string} entryId - 琚垹闄ゆ潯鐩殑 ID
+ * @param {Function} onUndo - 鐐瑰嚮鎾ら攢鏃剁殑鍥炶皟
+ * @param {Function} onExpire - 瓒呮椂鏈挙閿€鏃剁殑娓呯悊鍥炶皟
  */
 function showUndoToast(entryId, onUndo, onExpire) {
-  // 清除之前的同名定时器
+  // 娓呴櫎涔嬪墠鐨勫悓鍚嶅畾鏃跺櫒
   if (_undoTimers.has(entryId)) {
     clearTimeout(_undoTimers.get(entryId));
     _undoTimers.delete(entryId);
@@ -92,12 +92,12 @@ function showUndoToast(entryId, onUndo, onExpire) {
   toast.className = 'toast undo-toast';
 
   const msg = document.createElement('span');
-  msg.textContent = '已删除（5分钟内可撤销）';
+  msg.textContent = '宸插垹闄わ紙5鍒嗛挓鍐呭彲鎾ら攢锛?;
   msg.className = 'undo-msg';
 
   const btn = document.createElement('button');
   btn.className = 'undo-btn';
-  btn.textContent = '撤销';
+  btn.textContent = '鎾ら攢';
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
     onUndo(entryId);
@@ -108,7 +108,7 @@ function showUndoToast(entryId, onUndo, onExpire) {
   toast.appendChild(btn);
   container.appendChild(toast);
 
-  // 5分钟后自动消失（撤销窗口期）
+  // 5鍒嗛挓鍚庤嚜鍔ㄦ秷澶憋紙鎾ら攢绐楀彛鏈燂級
   const timer = setTimeout(() => {
     removeUndoToast(toast, entryId);
     if (onExpire) onExpire(entryId);
@@ -128,7 +128,7 @@ function removeUndoToast(toast, entryId) {
 }
 
 // ============================================================
-// 鼠标光晕跟随
+// 榧犳爣鍏夋檿璺熼殢
 // ============================================================
 
 function createGlowCursor() {
@@ -152,7 +152,7 @@ function createGlowCursor() {
 }
 
 // ============================================================
-// 彩纸庆祝效果
+// 褰╃焊搴嗙鏁堟灉
 // ============================================================
 
 function fireConfetti() {
@@ -161,7 +161,7 @@ function fireConfetti() {
   document.body.appendChild(container);
 
   const colors = ['#a855f7', '#ec4899', '#f59e0b', '#22c55e', '#60a5fa', '#f472b6', '#c084fc'];
-  const shapes = ['■', '●', '▲', '★', '♦'];
+  const shapes = ['鈻?, '鈼?, '鈻?, '鈽?, '鈾?];
 
   for (let i = 0; i < 50; i++) {
     const piece = document.createElement('div');
@@ -189,7 +189,7 @@ function fireConfetti() {
 }
 
 // ============================================================
-// 粒子背景动画（增强版）
+// 绮掑瓙鑳屾櫙鍔ㄧ敾锛堝寮虹増锛?
 // ============================================================
 
 class ParticleBackground {
@@ -223,13 +223,13 @@ class ParticleBackground {
       alpha: Math.random() * 0.5 + 0.1,
       pulse: Math.random() * Math.PI * 2,
       pulseSpeed: Math.random() * 0.02 + 0.005,
-      // 颜色：紫色系为主，偶尔带粉色/蓝色
+      // 棰滆壊锛氱传鑹茬郴涓轰富锛屽伓灏斿甫绮夎壊/钃濊壊
       hue: Math.random() < 0.7 ? 270 + Math.random() * 30 : (Math.random() < 0.5 ? 330 : 220),
     }));
   }
 
   initStars() {
-    // 远处闪烁的小星星
+    // 杩滃闂儊鐨勫皬鏄熸槦
     this.stars = Array.from({ length: 30 }, () => ({
       x: Math.random() * this.canvas.width,
       y: Math.random() * this.canvas.height,
@@ -263,7 +263,7 @@ class ParticleBackground {
     this.time += 0.005;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 绘制闪烁星星（背景层）
+    // 缁樺埗闂儊鏄熸槦锛堣儗鏅眰锛?
     for (const s of stars) {
       const flicker = Math.sin(this.time * 3 + s.phase) * 0.3 + 0.7;
       const a = s.alpha * flicker;
@@ -283,7 +283,7 @@ class ParticleBackground {
       if (p.y < 0) p.y = canvas.height;
       if (p.y > canvas.height) p.y = 0;
 
-      // 鼠标吸引/弹开效果
+      // 榧犳爣鍚稿紩/寮瑰紑鏁堟灉
       const dx = mouse.x - p.x;
       const dy = mouse.y - p.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -295,11 +295,11 @@ class ParticleBackground {
         if (speed > 2.5) { p.vx = (p.vx / speed) * 2.5; p.vy = (p.vy / speed) * 2.5; }
       }
 
-      // 粒子呼吸效果
+      // 绮掑瓙鍛煎惛鏁堟灉
       const breathe = Math.sin(p.pulse) * 0.3 + 0.7;
       const currentSize = p.size * breathe;
 
-      // 绘制粒子光晕（外发光）
+      // 缁樺埗绮掑瓙鍏夋檿锛堝鍙戝厜锛?
       const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, currentSize * 4);
       gradient.addColorStop(0, `hsla(${p.hue}, 80%, 70%, ${p.alpha * 0.4})`);
       gradient.addColorStop(1, `hsla(${p.hue}, 80%, 70%, 0)`);
@@ -308,21 +308,21 @@ class ParticleBackground {
       ctx.fillStyle = gradient;
       ctx.fill();
 
-      // 绘制粒子核心
+      // 缁樺埗绮掑瓙鏍稿績
       const coreAlpha = Math.sin(p.pulse) * 0.1 + 0.3;
       ctx.beginPath();
       ctx.arc(p.x, p.y, currentSize, 0, Math.PI * 2);
       ctx.fillStyle = `hsla(${p.hue}, 80%, 75%, ${p.alpha + coreAlpha})`;
       ctx.fill();
 
-      // 粒子核心高光
+      // 绮掑瓙鏍稿績楂樺厜
       ctx.beginPath();
       ctx.arc(p.x - currentSize * 0.2, p.y - currentSize * 0.2, currentSize * 0.3, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha * 0.3})`;
       ctx.fill();
     }
 
-    // 连线（带呼吸效果）
+    // 杩炵嚎锛堝甫鍛煎惛鏁堟灉锛?
     const lineGlow = Math.sin(this.time * 2) * 0.02 + 0.06;
     for (let i = 0; i < particles.length; i++) {
       for (let j = i + 1; j < particles.length; j++) {
@@ -347,22 +347,22 @@ class ParticleBackground {
 }
 
 // ============================================================
-// 背景动漫剪影
+// 鑳屾櫙鍔ㄦ极鍓奖
 // ============================================================
 
 const ANIME_SILHOUETTES = [
-  // 1. 🍖 草帽（路飞）
+  // 1. 馃崠 鑽夊附锛堣矾椋烇級
   `<svg viewBox="0 0 120 100" fill="currentColor">
     <ellipse cx="60" cy="82" rx="56" ry="12"/>
     <path d="M22,76 Q22,35 60,25 Q98,35 98,76"/>
   </svg>`,
-  // 2. ⚡ 赛亚人发型 + 光环（悟空）
+  // 2. 鈿?璧涗簹浜哄彂鍨?+ 鍏夌幆锛堟偀绌猴級
   `<svg viewBox="0 0 100 120" fill="currentColor">
     <circle cx="50" cy="60" r="26"/>
     <polygon points="50,0 52,22 72,10 60,28 88,22 66,38 92,42 68,52 90,65 68,62 64,80 56,68 44,80 36,62 22,65 42,52 28,42 52,38 40,28 22,22 48,28 40,10 52,22"/>
     <circle cx="50" cy="12" r="18" fill="none" stroke="currentColor" stroke-width="4" opacity="0.5"/>
   </svg>`,
-  // 3. ⚡ 皮卡丘
+  // 3. 鈿?鐨崱涓?
   `<svg viewBox="0 0 100 100" fill="currentColor">
     <ellipse cx="50" cy="60" rx="32" ry="28"/>
     <polygon points="20,36 5,2 32,28"/>
@@ -370,33 +370,33 @@ const ANIME_SILHOUETTES = [
     <polygon points="20,28 12,10 28,24"/>
     <polygon points="80,28 88,10 72,24"/>
   </svg>`,
-  // 4. 🌙 水手月亮（丸子头 + 月）
+  // 4. 馃寵 姘存墜鏈堜寒锛堜父瀛愬ご + 鏈堬級
   `<svg viewBox="0 0 100 110" fill="currentColor">
     <ellipse cx="50" cy="55" rx="24" ry="30"/>
     <circle cx="20" cy="32" r="16"/>
     <circle cx="80" cy="32" r="16"/>
     <path d="M58,8 A35,35 0 1,0 58,78 A28,35 0 1,1 58,8" opacity="0.4"/>
   </svg>`,
-  // 5. 🌀 手里剑（火影）
+  // 5. 馃寑 鎵嬮噷鍓戯紙鐏奖锛?
   `<svg viewBox="0 0 100 100" fill="currentColor">
     <polygon points="50,2 54,46 98,50 54,54 50,98 46,54 2,50 46,46"/>
     <circle cx="50" cy="50" r="8" fill="var(--bg-primary)"/>
   </svg>`,
-  // 6. 🐱 猫耳（动漫萌系）
+  // 6. 馃惐 鐚€筹紙鍔ㄦ极钀岀郴锛?
   `<svg viewBox="0 0 100 100" fill="currentColor">
     <ellipse cx="50" cy="60" rx="34" ry="30"/>
     <polygon points="20,40 28,8 42,36"/>
     <polygon points="80,40 72,8 58,36"/>
     <ellipse cx="50" cy="68" rx="10" ry="6"/>
   </svg>`,
-  // 7. 🎀 蝴蝶结（魔法少女）
+  // 7. 馃巰 铦磋澏缁擄紙榄旀硶灏戝コ锛?
   `<svg viewBox="0 0 100 80" fill="currentColor">
     <path d="M50,40 Q20,10 10,30 Q5,50 50,40"/>
     <path d="M50,40 Q80,10 90,30 Q95,50 50,40"/>
     <ellipse cx="50" cy="40" rx="6" ry="8"/>
     <path d="M48,48 L42,72 M52,48 L58,72" stroke="currentColor" stroke-width="3" fill="none"/>
   </svg>`,
-  // 8. 🐉 龙珠
+  // 8. 馃悏 榫欑彔
   `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2.5">
     <circle cx="50" cy="50" r="44"/>
     <circle cx="50" cy="50" r="8" fill="currentColor"/>
@@ -412,7 +412,7 @@ const ANIME_FLOAT_ANIMS = ['silhouetteFloat', 'silhouetteFloat2', 'silhouetteFlo
 const ANIME_COLORS = ['#a855f7', '#ec4899', '#c084fc', '#f59e0b', '#60a5fa', '#f472b6'];
 
 function createAnimeSilhouettes() {
-  // 检查容器是否已存在
+  // 妫€鏌ュ鍣ㄦ槸鍚﹀凡瀛樺湪
   if (document.querySelector('.anime-bg-container')) return;
 
   const container = document.createElement('div');
@@ -451,12 +451,12 @@ function createAnimeSilhouettes() {
 }
 
 // ============================================================
-// 主应用
+// 涓诲簲鐢?
 // ============================================================
 
 class AniListApp {
   constructor() {
-    // 当前状态
+    // 褰撳墠鐘舵€?
     this.editingId = null;
     this.deletingId = null;
     this.currentType = 'all';
@@ -464,7 +464,7 @@ class AniListApp {
     this.currentSort = 'newest';
     this.searchQuery = '';
     this.prevStats = { all: 0, watching: 0, want_to_watch: 0, completed: 0, on_hold: 0 };
-    /** 待撤销的删除记录 { id -> entryData } */
+    /** 寰呮挙閿€鐨勫垹闄よ褰?{ id -> entryData } */
     this.pendingDeletes = {};
 
     this.initParticleBg();
@@ -473,7 +473,7 @@ class AniListApp {
     this.cacheDom();
     this.bindEvents();
     this.render();
-    // 暴露给全局，用于远程同步时自动刷新
+    // 鏆撮湶缁欏叏灞€锛岀敤浜庤繙绋嬪悓姝ユ椂鑷姩鍒锋柊
     window.__anilistApp = this;
   }
 
@@ -497,20 +497,20 @@ class AniListApp {
     this.emptyState = this.$('emptyState');
     this.emptyText = this.$('emptyText');
 
-    // 搜索筛选
+    // 鎼滅储绛涢€?
     this.searchInput = this.$('searchInput');
     this.searchClear = this.$('searchClear');
     this.typeFilter = this.$('typeFilter');
     this.statusFilter = this.$('statusFilter');
     this.sortSelect = this.$('sortSelect');
 
-    // 统计
+    // 缁熻
     this.statsBar = this.$('statsBar');
 
-    // 浮动按钮
+    // 娴姩鎸夐挳
     this.fabAdd = this.$('fabAdd');
 
-    // 表单模态框
+    // 琛ㄥ崟妯℃€佹
     this.formModal = this.$('formModal');
     this.modalTitle = this.$('modalTitle');
     this.modalClose = this.$('modalClose');
@@ -525,22 +525,18 @@ class AniListApp {
     this.formSubmit = this.$('formSubmit');
     this.starRatingEl = this.$('starRating');
 
-    // 删除模态框
+    // 鍒犻櫎妯℃€佹
     this.deleteModal = this.$('deleteModal');
     this.deleteTitle = this.$('deleteTitle');
     this.deleteConfirm = this.$('deleteConfirm');
     this.deleteCancel = this.$('deleteCancel');
     this.deleteClose = this.$('deleteClose');
 
-    // 导入导出
-    this.exportBtn = this.$('exportBtn');
-    this.importBtn = this.$('importBtn');
-    this.importFileInput = this.$('importFileInput');
     this.resetBtn = this.$('resetBtn');
   }
 
   bindEvents() {
-    // 搜索
+    // 鎼滅储
     this.searchInput.addEventListener('input', (e) => {
       this.searchQuery = e.target.value;
       this.render();
@@ -551,7 +547,7 @@ class AniListApp {
       this.render();
     });
 
-    // 筛选
+    // 绛涢€?
     this.typeFilter.addEventListener('change', (e) => {
       this.currentType = e.target.value;
       this.render();
@@ -565,7 +561,7 @@ class AniListApp {
       this.render();
     });
 
-    // 统计栏点击筛选
+    // 缁熻鏍忕偣鍑荤瓫閫?
     this.statsBar.addEventListener('click', (e) => {
       const statItem = e.target.closest('.stat-item');
       if (!statItem) return;
@@ -579,21 +575,21 @@ class AniListApp {
       this.render();
     });
 
-    // 浮动按钮 → 打开添加表单
+    // 娴姩鎸夐挳 鈫?鎵撳紑娣诲姞琛ㄥ崟
     this.fabAdd.addEventListener('click', () => this.openForm());
 
-    // 表单提交
+    // 琛ㄥ崟鎻愪氦
     this.animeForm.addEventListener('submit', (e) => {
       e.preventDefault();
       this.handleFormSubmit();
     });
 
-    // 关闭表单
+    // 鍏抽棴琛ㄥ崟
     const closeForm = () => this.closeModal(this.formModal);
     this.modalClose.addEventListener('click', closeForm);
     this.formCancel.addEventListener('click', closeForm);
 
-    // 星星评分
+    // 鏄熸槦璇勫垎
     this.starRatingEl.addEventListener('click', (e) => {
       const star = e.target.closest('.star');
       if (!star) return;
@@ -612,7 +608,7 @@ class AniListApp {
       this.previewRating(null);
     });
 
-    // 关闭删除弹窗
+    // 鍏抽棴鍒犻櫎寮圭獥
     const closeDelete = () => this.closeModal(this.deleteModal);
     this.deleteClose.addEventListener('click', closeDelete);
     this.deleteCancel.addEventListener('click', closeDelete);
@@ -621,22 +617,14 @@ class AniListApp {
       if (e.target === this.deleteModal) closeDelete();
     });
 
-    // 导出
-    this.exportBtn.addEventListener('click', () => this.handleExport());
-
-    // 导入
-    this.importBtn.addEventListener('click', () => this.importFileInput.click());
-    this.importFileInput.addEventListener('change', (e) => this.handleImport(e));
-
-    // 重置
     this.resetBtn.addEventListener('click', () => this.handleReset());
 
-    // 点击模态框外部关闭
+    // 鐐瑰嚮妯℃€佹澶栭儴鍏抽棴
     this.formModal.addEventListener('click', (e) => {
       if (e.target === this.formModal) this.closeModal(this.formModal);
     });
 
-    // Escape 键
+    // Escape 閿?
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (this.formModal.classList.contains('open')) this.closeModal(this.formModal);
@@ -645,13 +633,13 @@ class AniListApp {
     });
   }
 
-  // ===== 星星评分 =====
+  // ===== 鏄熸槦璇勫垎 =====
   setRating(value) {
     this.formRating.value = value;
     const stars = this.starRatingEl.querySelectorAll('.star');
     stars.forEach((star, i) => {
       star.classList.toggle('active', i < value);
-      star.textContent = i < value ? '★' : '☆';
+      star.textContent = i < value ? '鈽? : '鈽?;
     });
   }
 
@@ -660,23 +648,23 @@ class AniListApp {
     const current = parseInt(this.formRating.value, 10);
     stars.forEach((star, i) => {
       if (value === null) {
-        star.textContent = i < current ? '★' : '☆';
+        star.textContent = i < current ? '鈽? : '鈽?;
       } else {
-        star.textContent = i < value ? '★' : '☆';
+        star.textContent = i < value ? '鈽? : '鈽?;
       }
     });
   }
 
-  // ===== 打开表单 =====
+  // ===== 鎵撳紑琛ㄥ崟 =====
   openForm(entry = null) {
     this.formModal.classList.add('open');
     document.body.style.overflow = 'hidden';
 
     if (entry) {
-      // 编辑模式
+      // 缂栬緫妯″紡
       this.editingId = entry.id;
-      this.modalTitle.textContent = '编辑条目';
-      this.formSubmit.innerHTML = '<i class="fas fa-check"></i> 保存修改';
+      this.modalTitle.textContent = '缂栬緫鏉＄洰';
+      this.formSubmit.innerHTML = '<i class="fas fa-check"></i> 淇濆瓨淇敼';
       this.formId.value = entry.id;
       this.formTitle.value = entry.title;
       this.formType.value = entry.type;
@@ -684,31 +672,31 @@ class AniListApp {
       this.formNotes.value = entry.notes || '';
       this.setRating(entry.rating || 0);
     } else {
-      // 添加模式
+      // 娣诲姞妯″紡
       this.editingId = null;
-      this.modalTitle.textContent = '添加条目';
-      this.formSubmit.innerHTML = '<i class="fas fa-check"></i> 保存';
+      this.modalTitle.textContent = '娣诲姞鏉＄洰';
+      this.formSubmit.innerHTML = '<i class="fas fa-check"></i> 淇濆瓨';
       this.animeForm.reset();
       this.formId.value = '';
       this.formRating.value = '0';
       this.setRating(0);
     }
 
-    // 聚焦名称输入
+    // 鑱氱劍鍚嶇О杈撳叆
     setTimeout(() => this.formTitle.focus(), 100);
   }
 
-  // ===== 关闭模态框 =====
+  // ===== 鍏抽棴妯℃€佹 =====
   closeModal(el) {
     el.classList.remove('open');
     document.body.style.overflow = '';
   }
 
-  // ===== 表单提交 =====
+  // ===== 琛ㄥ崟鎻愪氦 =====
   handleFormSubmit() {
     const title = this.formTitle.value.trim();
     if (!title) {
-      showToast('请输入名称', 'error');
+      showToast('璇疯緭鍏ュ悕绉?, 'error');
       this.formTitle.focus();
       return;
     }
@@ -723,11 +711,11 @@ class AniListApp {
 
     if (this.editingId) {
       AnimeDB.update(this.editingId, data);
-      showToast('已更新 ✨');
+      showToast('宸叉洿鏂?鉁?);
     } else {
       AnimeDB.add(data);
-      showToast('已添加 🎉');
-      // 添加时放彩纸庆祝
+      showToast('宸叉坊鍔?馃帀');
+      // 娣诲姞鏃舵斁褰╃焊搴嗙
       setTimeout(fireConfetti, 200);
     }
 
@@ -735,12 +723,12 @@ class AniListApp {
     this.render();
   }
 
-  // ===== 删除确认 =====
+  // ===== 鍒犻櫎纭 =====
   confirmDelete(id) {
     const entry = AnimeDB.getById(id);
     if (!entry) return;
     this.deletingId = id;
-    this.deleteTitle.textContent = `「${entry.title}」`;
+    this.deleteTitle.textContent = `銆?{entry.title}銆峘;
     this.deleteModal.classList.add('open');
     document.body.style.overflow = 'hidden';
   }
@@ -751,10 +739,10 @@ class AniListApp {
     const entry = AnimeDB.getById(this.deletingId);
     if (!entry) { this.deletingId = null; return; }
 
-    // 保存完整数据用于可能的撤销
+    // 淇濆瓨瀹屾暣鏁版嵁鐢ㄤ簬鍙兘鐨勬挙閿€
     this.pendingDeletes[this.deletingId] = { ...entry };
 
-    // 卡片淡出动画
+    // 鍗＄墖娣″嚭鍔ㄧ敾
     const card = this.listContainer.querySelector(`.card[data-id="${this.deletingId}"]`);
     if (card) card.classList.add('removing');
 
@@ -763,7 +751,7 @@ class AniListApp {
       AnimeDB.delete(id);
       this.deletingId = null;
       this.closeModal(this.deleteModal);
-      // 显示带撤销的 Toast
+      // 鏄剧ず甯︽挙閿€鐨?Toast
       showUndoToast(
         id,
         (undoId) => this.handleUndoDelete(undoId),
@@ -773,112 +761,74 @@ class AniListApp {
     }, 250);
   }
 
-  /** 撤销删除 */
+  /** 鎾ら攢鍒犻櫎 */
   handleUndoDelete(id) {
     const data = this.pendingDeletes[id];
     if (!data) {
-      showToast('已无法撤销', 'error');
+      showToast('宸叉棤娉曟挙閿€', 'error');
       return;
     }
     delete this.pendingDeletes[id];
-    // 用原始 ID 重新添加
+    // 鐢ㄥ師濮?ID 閲嶆柊娣诲姞
     AnimeDB.undoAdd(data);
-    showToast('已恢复 ↩️');
+    showToast('宸叉仮澶?鈫╋笍');
     this.render();
   }
 
-  // ===== 导出 =====
-  handleExport() {
-    const json = AnimeDB.exportData();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `anilist-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('导出成功 📦');
-  }
-
-  // ===== 导入 =====
-  handleImport(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const count = AnimeDB.importData(event.target.result);
-        showToast(`导入成功！共 ${count} 条记录 📥`);
-        this.render();
-      } catch (err) {
-        showToast(err.message || '导入失败', 'error');
-      }
-    };
-    reader.onerror = () => {
-      showToast('文件读取失败', 'error');
-    };
-    reader.readAsText(file);
-    // 重置 input 以支持重复导入同文件
-    this.importFileInput.value = '';
-  }
-
-  // ===== 重置 =====
+  // ===== 閲嶇疆 =====
   handleReset() {
-    if (confirm('确定要清除所有数据吗？此操作不可撤销！')) {
+    if (confirm('纭畾瑕佹竻闄ゆ墍鏈夋暟鎹悧锛熸鎿嶄綔涓嶅彲鎾ら攢锛?)) {
       AnimeDB.reset();
-      showToast('已重置数据');
+      showToast('宸查噸缃暟鎹?);
       this.render();
     }
   }
 
-  // ===== 渲染 =====
+  // ===== 娓叉煋 =====
   render() {
-    // 获取并筛选数据
+    // 鑾峰彇骞剁瓫閫夋暟鎹?
     let entries = AnimeDB.search({
       query: this.searchQuery,
       type: this.currentType,
       status: this.currentStatus,
     });
 
-    // 排序
+    // 鎺掑簭
     entries = sortEntries(entries, this.currentSort);
 
-    // 渲染统计
+    // 娓叉煋缁熻
     this.renderStats();
 
-    // 空状态
+    // 绌虹姸鎬?
     const allEmpty = AnimeDB.getAll().length === 0;
     if (entries.length === 0) {
       this.listContainer.innerHTML = '';
       this.emptyState.classList.add('visible');
       if (this.searchQuery || this.currentType !== 'all' || this.currentStatus !== 'all') {
-        this.emptyText.innerHTML = '<i class="fa-solid fa-search" style="opacity:0.4;margin-right:4px"></i> 没有符合条件的结果';
+        this.emptyText.innerHTML = '<i class="fa-solid fa-search" style="opacity:0.4;margin-right:4px"></i> 娌℃湁绗﹀悎鏉′欢鐨勭粨鏋?;
       } else {
-        this.emptyText.innerHTML = '<i class="fa-solid fa-pen" style="opacity:0.4;margin-right:4px"></i> 还没有记录，点 + 添加吧';
+        this.emptyText.innerHTML = '<i class="fa-solid fa-pen" style="opacity:0.4;margin-right:4px"></i> 杩樻病鏈夎褰曪紝鐐?+ 娣诲姞鍚?;
       }
       return;
     }
 
     this.emptyState.classList.remove('visible');
 
-    // 渲染卡片
+    // 娓叉煋鍗＄墖
     this.listContainer.innerHTML = entries.map((entry, i) => this.createCard(entry, i)).join('');
 
-    // 绑定卡片事件（委托）
+    // 缁戝畾鍗＄墖浜嬩欢锛堝鎵橈級
     this.listContainer.querySelectorAll('.card').forEach((card) => {
-      // 点击卡片编辑
+      // 鐐瑰嚮鍗＄墖缂栬緫
       card.addEventListener('click', (e) => {
-        // 如果点击的是子元素的按钮等，不触发编辑
+        // 濡傛灉鐐瑰嚮鐨勬槸瀛愬厓绱犵殑鎸夐挳绛夛紝涓嶈Е鍙戠紪杈?
         if (e.target.closest('.card-delete-btn')) return;
         const id = card.dataset.id;
         const entry = AnimeDB.getById(id);
         if (entry) this.openForm(entry);
       });
 
-      // 删除按钮
+      // 鍒犻櫎鎸夐挳
       const deleteBtn = card.querySelector('.card-delete-btn');
       if (deleteBtn) {
         deleteBtn.addEventListener('click', (e) => {
@@ -899,13 +849,13 @@ class AniListApp {
       if (el.textContent !== String(newVal)) {
         el.textContent = newVal;
         el.classList.remove('pop');
-        // 触发重排以重新播放动画
+        // 瑙﹀彂閲嶆帓浠ラ噸鏂版挱鏀惧姩鐢?
         void el.offsetWidth;
         el.classList.add('pop');
       }
     }
 
-    // 高亮当前筛选
+    // 楂樹寒褰撳墠绛涢€?
     const activeStatus = this.currentStatus === 'all' ? 'all' : this.currentStatus;
     this.statsBar.querySelectorAll('.stat-item').forEach((el) => {
       el.classList.toggle('active', el.dataset.status === activeStatus);
@@ -913,7 +863,7 @@ class AniListApp {
   }
 
   createCard(entry, index) {
-    const stars = '★'.repeat(entry.rating) + '☆'.repeat(5 - entry.rating);
+    const stars = '鈽?.repeat(entry.rating) + '鈽?.repeat(5 - entry.rating);
     const notesHtml = entry.notes
       ? `<div class="card-notes">${this.escapeHtml(entry.notes)}</div>`
       : '';
@@ -930,7 +880,7 @@ class AniListApp {
             <span class="card-type-badge-text">${TYPE_LABELS[entry.type] || entry.type}</span>
           </div>
           <div class="card-title">${this.escapeHtml(entry.title)}</div>
-          <button class="card-delete-btn header-btn" title="删除" style="flex-shrink:0">
+          <button class="card-delete-btn header-btn" title="鍒犻櫎" style="flex-shrink:0">
             <i class="fa-regular fa-trash-can"></i>
           </button>
         </div>
@@ -943,7 +893,7 @@ class AniListApp {
         <div class="card-footer">
           <div class="card-rating">
             ${Array.from({ length: 5 }, (_, i) =>
-              `<span class="${i < entry.rating ? 'star-filled' : ''}">${i < entry.rating ? '★' : '☆'}</span>`
+              `<span class="${i < entry.rating ? 'star-filled' : ''}">${i < entry.rating ? '鈽? : '鈽?}</span>`
             ).join('')}
           </div>
           <span class="card-date"><i class="fa-regular fa-calendar"></i> ${formatDate(entry.createdAt)}</span>
@@ -960,7 +910,7 @@ class AniListApp {
 }
 
 // ============================================================
-// 同步状态指示器
+// 鍚屾鐘舵€佹寚绀哄櫒
 // ============================================================
 
 function updateSyncUI(status, msg) {
@@ -976,7 +926,7 @@ function updateSyncUI(status, msg) {
     error: 'fa-solid fa-cloud-exclamation',
   };
   if (icons[status]) icon.className = icons[status];
-  text.textContent = msg || { local: '本地', syncing: '同步中…', connected: '已同步', error: '同步失败' }[status] || '本地';
+  text.textContent = msg || { local: '鏈湴', syncing: '鍚屾涓€?, connected: '宸插悓姝?, error: '鍚屾澶辫触' }[status] || '鏈湴';
 }
 
 function showGitHubStatus(msg, isError) {
@@ -988,14 +938,14 @@ function showGitHubStatus(msg, isError) {
 }
 
 // ============================================================
-// 启动
+// 鍚姩
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 从 GitHub CDN 拉取数据（不再从 localStorage）
+  // 浠?GitHub CDN 鎷夊彇鏁版嵁锛堜笉鍐嶄粠 localStorage锛?
   const defaultRepo = typeof GITHUB_DEFAULT_REPO !== 'undefined' ? GITHUB_DEFAULT_REPO : '';
 
-  // URL 参数 token（跨设备首次配置）
+  // URL 鍙傛暟 token锛堣法璁惧棣栨閰嶇疆锛?
   const urlParams = new URLSearchParams(window.location.search);
   const urlToken = urlParams.get('token');
   let cfg = AnimeDB.getGitHubConfig();
@@ -1006,16 +956,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.history.replaceState({}, '', window.location.pathname + window.location.hash);
   }
 
-  // 从云端加载数据
+  // 浠庝簯绔姞杞芥暟鎹?
   updateSyncUI('syncing');
   try {
     await AnimeDB.init(defaultRepo);
   } catch { updateSyncUI('local'); }
 
-  // 启动应用
+  // 鍚姩搴旂敤
   new AniListApp();
 
-  // ===== GitHub 同步弹窗事件 =====
+  // ===== GitHub 鍚屾寮圭獥浜嬩欢 =====
   const githubBtn = document.getElementById('githubBtn');
   const githubModal = document.getElementById('githubModal');
   const githubClose = document.getElementById('githubClose');
@@ -1032,9 +982,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.body.style.overflow = 'hidden';
     };
     const closeGithubModal = () => {
-      // 关闭时记录 session 标记，避免本会话反复弹引导
+      // 鍏抽棴鏃惰褰?session 鏍囪锛岄伩鍏嶆湰浼氳瘽鍙嶅寮瑰紩瀵?
       sessionStorage.setItem('anilist_gh_dismissed', '1');
-      // 恢复标题（如果是首次配置引导弹窗）
+      // 鎭㈠鏍囬锛堝鏋滄槸棣栨閰嶇疆寮曞寮圭獥锛?
       const titleEl = githubModal.querySelector('.modal-title');
       if (titleEl && titleEl.dataset.origTitle) {
         titleEl.innerHTML = titleEl.dataset.origTitle;
@@ -1050,52 +1000,52 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (e.target === githubModal) closeGithubModal();
     });
 
-    // 上传到云端
+    // 涓婁紶鍒颁簯绔?
     githubPushBtn.addEventListener('click', async () => {
       const token = document.getElementById('githubToken').value.trim();
       const repo = document.getElementById('githubRepo').value.trim();
       if (!token || !repo) {
-        showGitHubStatus('请填写 Token 和仓库名', true);
+        showGitHubStatus('璇峰～鍐?Token 鍜屼粨搴撳悕', true);
         return;
       }
       AnimeDB.saveGitHubConfig({ token, repo });
-      showGitHubStatus('正在上传…');
+      showGitHubStatus('姝ｅ湪涓婁紶鈥?);
       updateSyncUI('syncing');
       try {
         await AnimeDB.push();
-        showGitHubStatus('✅ 上传成功！');
-        updateSyncUI('connected', '云端');
+        showGitHubStatus('鉁?涓婁紶鎴愬姛锛?);
+        updateSyncUI('connected', '浜戠');
       } catch (e) {
-        showGitHubStatus('❌ ' + e.message, true);
+        showGitHubStatus('鉂?' + e.message, true);
         updateSyncUI('error');
       }
     });
 
-    // 从云端下载
+    // 浠庝簯绔笅杞?
     githubPullBtn.addEventListener('click', async () => {
       const token = document.getElementById('githubToken').value.trim();
       const repo = document.getElementById('githubRepo').value.trim();
       if (!repo) {
-        showGitHubStatus('请填写仓库名', true);
+        showGitHubStatus('璇峰～鍐欎粨搴撳悕', true);
         return;
       }
       AnimeDB.saveGitHubConfig({ token, repo });
-      showGitHubStatus('正在下载…');
+      showGitHubStatus('姝ｅ湪涓嬭浇鈥?);
       updateSyncUI('syncing');
       try {
         await AnimeDB.init(repo);
         const count = AnimeDB.getAll().length;
-        showGitHubStatus(`✅ 已加载 ${count} 条云端数据`);
-        updateSyncUI('connected', '云端');
+        showGitHubStatus(`鉁?宸插姞杞?${count} 鏉′簯绔暟鎹甡);
+        updateSyncUI('connected', '浜戠');
         const app = window.__anilistApp;
         if (app) app.render();
       } catch (e) {
-        showGitHubStatus('❌ ' + e.message, true);
+        showGitHubStatus('鉂?' + e.message, true);
         updateSyncUI('error');
       }
     });
 
-    // ===== 新设备引导：未配 token 时自动弹出配置窗口 =====
+    // ===== 鏂拌澶囧紩瀵硷細鏈厤 token 鏃惰嚜鍔ㄥ脊鍑洪厤缃獥鍙?=====
     (function autoPromptGitHub() {
       const cfg = AnimeDB.getGitHubConfig();
       const hasToken = cfg && cfg.token;
@@ -1106,15 +1056,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const titleEl = githubModal.querySelector('.modal-title');
         if (titleEl) {
           titleEl.dataset.origTitle = titleEl.innerHTML;
-          titleEl.innerHTML = '<i class="fa-brands fa-github"></i> 首次配置 · 云同步';
+          titleEl.innerHTML = '<i class="fa-brands fa-github"></i> 棣栨閰嶇疆 路 浜戝悓姝?;
         }
-        showGitHubStatus('🔑 首次使用请填写 GitHub Personal Access Token，仅需配置一次', false);
+        showGitHubStatus('馃攽 棣栨浣跨敤璇峰～鍐?GitHub Personal Access Token锛屼粎闇€閰嶇疆涓€娆?, false);
         openGithubModal();
       }, 1200);
     })();
   }
 
-  // Escape 键关闭
+  // Escape 閿叧闂?
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       const modals = document.querySelectorAll('.modal-overlay.open');
@@ -1123,3 +1073,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 });
+
+
+
+
+
+
