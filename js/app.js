@@ -460,7 +460,7 @@ class AniListApp {
     this.currentType = 'all';
     this.currentStatus = 'want_to_watch';
     this.currentSort = 'newest';
-    this.searchQuery = '';
+    this.searchQueries = { all: '', want_to_watch: '', watching: '', completed: '' };
     this.prevStats = { all: 0, watching: 0, want_to_watch: 0, completed: 0 };
     /** 待撤销的删除记录 { id -> entryData } */
     this.pendingDeletes = {};
@@ -496,9 +496,7 @@ class AniListApp {
     this.emptyState = this.$('emptyState');
     this.emptyText = this.$('emptyText');
 
-    // 搜索筛选
-    this.searchInput = this.$('searchInput');
-    this.searchClear = this.$('searchClear');
+    // 筛选
     this.typeFilter = this.$('typeFilter');
     this.statusFilter = this.$('statusFilter');
     this.sortSelect = this.$('sortSelect');
@@ -539,14 +537,12 @@ class AniListApp {
   }
 
   bindEvents() {
-    // 搜索
-    this.searchInput.addEventListener('input', (e) => {
-      this.searchQuery = e.target.value;
-      this.render();
-    });
-    this.searchClear.addEventListener('click', () => {
-      this.searchInput.value = '';
-      this.searchQuery = '';
+    // 独立搜索——每个标签自己的搜索框
+    this.statsBar.addEventListener('input', (e) => {
+      const input = e.target.closest('.stat-search');
+      if (!input) return;
+      const status = input.dataset.s;
+      this.searchQueries[status] = input.value;
       this.render();
     });
 
@@ -564,8 +560,9 @@ class AniListApp {
       this.render();
     });
 
-    // 统计栏点击筛选
+    // 统计栏点击筛选（点击搜索框时不切换）
     this.statsBar.addEventListener('click', (e) => {
+      if (e.target.closest('.stat-search')) return;
       const statItem = e.target.closest('.stat-item');
       if (!statItem) return;
       const status = statItem.dataset.status;
@@ -840,9 +837,10 @@ class AniListApp {
     const prevHeight = listContainer.offsetHeight;
     if (prevHeight > 0) listContainer.style.minHeight = prevHeight + 'px';
 
-    // 获取并筛选数据
+    // 获取并筛选数据（使用当前标签独立的搜索词）
+    const query = this.searchQueries[this.currentStatus] || '';
     let entries = AnimeDB.search({
-      query: this.searchQuery,
+      query,
       type: this.currentType,
       status: this.currentStatus,
     });
@@ -853,12 +851,16 @@ class AniListApp {
     // 渲染统计
     this.renderStats();
 
+    // 同步当前标签的搜索框值
+    const activeSearch = this.statsBar.querySelector(`.stat-search[data-s="${this.currentStatus}"]`);
+    if (activeSearch && activeSearch.value !== query) activeSearch.value = query;
+
     // 空状态
     const allEmpty = AnimeDB.getAll().length === 0;
     if (entries.length === 0) {
       this.listContainer.innerHTML = '';
       this.emptyState.classList.add('visible');
-      if (this.searchQuery || this.currentType !== 'all' || this.currentStatus !== 'all') {
+      if (query || this.currentType !== 'all' || this.currentStatus !== 'all') {
         this.emptyText.innerHTML = '<i class="fa-solid fa-search" style="opacity:0.4;margin-right:4px"></i> 没有符合条件的结果';
       } else {
         this.emptyText.innerHTML = '<i class="fa-solid fa-pen" style="opacity:0.4;margin-right:4px"></i> 还没有记录，点 + 添加吧';

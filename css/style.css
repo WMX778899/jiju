@@ -1,8 +1,8 @@
-/* ============================================================
-   AniList · 动漫风追番备忘 - 全样式
+﻿/* ============================================================
+   AniList 路 鍔ㄦ极椋庤拷鐣蹇?- 鍏ㄦ牱寮?
    ============================================================ */
 
-/* ---------- CSS 变量 ---------- */
+/* ---------- CSS 鍙橀噺 ---------- */
 :root {
   --bg-primary: #0b0a12;
   --bg-secondary: #12101e;
@@ -42,7 +42,7 @@
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ---------- 关键帧动画 ---------- */
+/* ---------- 鍏抽敭甯у姩鐢?---------- */
 @keyframes neonPulse {
   0%, 100% { filter: drop-shadow(0 0 8px var(--accent-glow)); }
   50% { filter: drop-shadow(0 0 20px var(--accent-glow)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.2)); }
@@ -114,7 +114,7 @@ body {
   line-height: 1.6;
 }
 
-/* ---------- 同步状态指示器 ---------- */
+/* ---------- 鍚屾鐘舵€佹寚绀哄櫒 ---------- */
 .sync-status {
   position: fixed;
   top: 12px;
@@ -167,7 +167,7 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ---------- 粒子画布 ---------- */
+/* ---------- 绮掑瓙鐢诲竷 ---------- */
 #particleCanvas {
   position: fixed;
   top: 0;
@@ -178,7 +178,7 @@ body {
   pointer-events: none;
 }
 
-/* ---------- 背景动漫剪影 ---------- */
+/* ---------- 鑳屾櫙鍔ㄦ极鍓奖 ---------- */
 .anime-bg-container {
   position: fixed;
   top: 0;
@@ -215,7 +215,7 @@ body {
   50% { transform: translate(30px, -30px) rotate(-8deg); }
 }
 
-/* ---------- 主容器 ---------- */
+/* ---------- 涓诲鍣?---------- */
 .app-container {
   position: relative;
   z-index: 1;
@@ -225,7 +225,7 @@ body {
 }
 
 /* ============================================================
-   头部
+   澶撮儴
    ============================================================ */
 .app-header {
   margin-bottom: 20px;
@@ -282,7 +282,7 @@ body {
   animation: neonPulse 3s ease-in-out infinite, shimmer 6s linear infinite;
 }
 
-/* ---------- 全局图标动画 ---------- */
+/* ---------- 鍏ㄥ眬鍥炬爣鍔ㄧ敾 ---------- */
 .header-btn i, .fab i, .btn i {
   transition: transform 0.3s ease, filter 0.3s ease;
 }
@@ -306,7 +306,7 @@ body {
   75% { transform: rotate(8deg); }
 }
 
-/* 鼠标光晕跟随 */
+/* 榧犳爣鍏夋檿璺熼殢 */
 #glowCursor {
   position: fixed;
   width: 300px;
@@ -355,7 +355,7 @@ body {
 }
 
 /* ============================================================
-   筛选栏
+   绛涢€夋爮
    ============================================================ */
 .filter-bar {
   display: flex;
@@ -363,56 +363,6 @@ body {
   gap: 10px;
   margin-bottom: 16px;
 }
-
-.search-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-icon {
-  position: absolute;
-  left: 14px;
-  color: var(--text-muted);
-  font-size: 14px;
-  pointer-events: none;
-}
-
-.search-input {
-  width: 100%;
-  padding: 12px 40px 12px 40px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  color: var(--text-primary);
-  font-size: 14px;
-  font-family: var(--font-main);
-  outline: none;
-  transition: var(--transition);
-}
-
-.search-input::placeholder { color: var(--text-muted); }
-.search-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 20px var(--accent-glow);
-}
-
-.search-clear {
-  position: absolute;
-  right: 10px;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 14px;
-  padding: 6px;
-  display: none;
-  border-radius: 6px;
-  transition: var(--transition);
-}
-
-.search-clear:hover { color: var(--text-primary); }
-.search-input:not(:placeholder-shown) ~ .search-clear { display: block; }
 
 .filter-group {
   display: flex;
@@ -456,7 +406,7 @@ body {
 }
 
 /* ============================================================
-   统计栏
+   缁熻鏍?
    ============================================================ */
 .stats-bar {
   display: flex;
@@ -471,8 +421,8 @@ body {
 
 .stat-item {
   flex: 1;
-  min-width: 64px;
-  padding: 10px 6px;
+  min-width: 72px;
+  padding: 8px 6px 6px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 14px;
@@ -480,6 +430,42 @@ body {
   cursor: pointer;
   transition: var(--transition);
   user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.stat-search {
+  width: 100%;
+  padding: 3px 6px;
+  background: var(--bg-primary);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-family: var(--font-main);
+  outline: none;
+  transition: var(--transition);
+  box-sizing: border-box;
+  cursor: text;
+  user-select: text;
+}
+
+.stat-search::placeholder { color: var(--text-muted); font-size: 10px; }
+.stat-search:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.stat-item.active .stat-search {
+  border-color: var(--border-color);
 }
 
 .stat-item:hover {
@@ -516,7 +502,7 @@ body {
 }
 
 /* ============================================================
-   卡片列表
+   鍗＄墖鍒楄〃
    ============================================================ */
 .list-container {
   display: grid;
@@ -524,7 +510,7 @@ body {
   min-height: 200px;
 }
 
-/* 卡片 */
+/* 鍗＄墖 */
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -549,7 +535,7 @@ body {
   transition: var(--transition);
 }
 
-/* 鼠标经过时的霓虹流光 */
+/* 榧犳爣缁忚繃鏃剁殑闇撹櫣娴佸厜 */
 .card::after {
   content: '';
   position: absolute;
@@ -582,7 +568,7 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* 卡片头部 */
+/* 鍗＄墖澶撮儴 */
 .card-header {
   display: flex;
   align-items: flex-start;
@@ -637,7 +623,7 @@ body {
   padding-top: 4px;
 }
 
-/* 卡片状态标签 */
+/* 鍗＄墖鐘舵€佹爣绛?*/
 .card-status {
   display: inline-flex;
   align-items: center;
@@ -675,7 +661,7 @@ body {
   border: 1px solid rgba(107, 114, 128, 0.25);
 }
 
-/* 卡片底部 */
+/* 鍗＄墖搴曢儴 */
 .card-footer {
   display: flex;
   align-items: center;
@@ -718,7 +704,7 @@ body {
 }
 
 /* ============================================================
-   空状态
+   绌虹姸鎬?
    ============================================================ */
 .empty-state {
   display: none;
@@ -759,7 +745,7 @@ body {
 }
 
 /* ============================================================
-   浮动按钮
+   娴姩鎸夐挳
    ============================================================ */
 .fab {
   position: fixed;
@@ -817,7 +803,7 @@ body {
 .fab:active { transform: scale(0.95); }
 
 /* ============================================================
-   模态框
+   妯℃€佹
    ============================================================ */
 .modal-overlay {
   display: none;
@@ -901,7 +887,7 @@ body {
   color: var(--danger);
 }
 
-/* 表单 */
+/* 琛ㄥ崟 */
 .anime-form { display: flex; flex-direction: column; gap: 16px; }
 
 .form-group { display: flex; flex-direction: column; gap: 6px; }
@@ -984,7 +970,7 @@ body {
   box-shadow: 0 0 16px var(--accent-glow);
 }
 
-/* 星星评分 */
+/* 鏄熸槦璇勫垎 */
 .star-rating {
   display: flex;
   gap: 4px;
@@ -1008,7 +994,7 @@ body {
   transform: scale(1.2);
 }
 
-/* 按钮 */
+/* 鎸夐挳 */
 .form-actions {
   display: flex;
   gap: 10px;
@@ -1063,7 +1049,7 @@ body {
   transform: translateY(-1px);
 }
 
-/* 删除弹窗 */
+/* 鍒犻櫎寮圭獥 */
 .delete-body {
   text-align: center;
   padding: 16px 0;
@@ -1094,7 +1080,7 @@ body {
 }
 
 /* ============================================================
-   Toast 消息
+   Toast 娑堟伅
    ============================================================ */
 .toast-container {
   position: fixed;
@@ -1126,7 +1112,7 @@ body {
 .toast.success { border-color: var(--success); }
 .toast.error { border-color: var(--danger); }
 
-/* 撤销 Toast */
+/* 鎾ら攢 Toast */
 .toast.undo-toast {
   display: flex;
   align-items: center;
@@ -1182,7 +1168,7 @@ body {
 }
 
 /* ============================================================
-   彩纸庆祝效果
+   褰╃焊搴嗙鏁堟灉
    ============================================================ */
 .confetti-container {
   position: fixed;
@@ -1204,7 +1190,7 @@ body {
 }
 
 /* ============================================================
-   统计数字变化动画
+   缁熻鏁板瓧鍙樺寲鍔ㄧ敾
    ============================================================ */
 .stat-count {
   display: block;
@@ -1226,7 +1212,7 @@ body {
 }
 
 /* ============================================================
-   卡片删除动画
+   鍗＄墖鍒犻櫎鍔ㄧ敾
    ============================================================ */
 .card.removing {
   animation: cardRemove 0.3s ease forwards;
@@ -1237,10 +1223,10 @@ body {
 }
 
 /* ============================================================
-   响应式适配（移动优先）
+   鍝嶅簲寮忛€傞厤锛堢Щ鍔ㄤ紭鍏堬級
    ============================================================ */
 
-/* ── 极小屏 (<400px) ──────────────────────── */
+/* 鈹€鈹€ 鏋佸皬灞?(<400px) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 @media (max-width: 399px) {
   .app-container { padding: 10px 10px 90px; }
 
@@ -1262,10 +1248,8 @@ body {
   .stat-label i { font-size: 8px; }
 
   .filter-select { font-size: 11px; padding: 7px 8px; padding-right: 26px; background-size: 10px; }
-  .search-input { font-size: 12px; padding: 9px 32px 9px 32px; }
-  .search-icon { left: 10px; font-size: 12px; }
 
-  .fab {
+.fab {
     bottom: 16px; right: 16px;
     width: 44px; height: 44px;
     font-size: 17px;
@@ -1281,7 +1265,7 @@ body {
   .undo-btn { font-size: 11px; padding: 4px 10px; }
 }
 
-/* ── 标准手机 (400~599px) ──────────────────── */
+/* 鈹€鈹€ 鏍囧噯鎵嬫満 (400~599px) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 @media (min-width: 400px) and (max-width: 599px) {
   .app-container { padding: 12px 14px 90px; }
 
@@ -1311,7 +1295,7 @@ body {
   .sync-status { top: 8px; right: 8px; }
 }
 
-/* ── 手机通用优化 ──────────────────────────── */
+/* 鈹€鈹€ 鎵嬫満閫氱敤浼樺寲 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 @media (max-width: 599px) {
   .header-content { flex-wrap: wrap; overflow: hidden; }
   .header-actions { gap: 4px; flex: 1; justify-content: flex-end; }
@@ -1332,7 +1316,7 @@ body {
   .toast-container { bottom: 80px; }
 }
 
-/* ── 平板 (600~959px) ──────────────────────── */
+/* 鈹€鈹€ 骞虫澘 (600~959px) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 @media (min-width: 600px) and (max-width: 959px) {
   .app-container { padding: 20px 24px 100px; }
 
@@ -1348,8 +1332,7 @@ body {
     align-items: center;
   }
 
-  .search-wrapper { flex: 1; }
-  .filter-group { flex: 1.5; }
+.filter-group { flex: 1.5; }
 
   .stats-bar { gap: 10px; }
 
@@ -1360,7 +1343,7 @@ body {
   }
 }
 
-/* ── 桌面 (960px+) ─────────────────────────── */
+/* 鈹€鈹€ 妗岄潰 (960px+) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 @media (min-width: 960px) {
   .app-container { padding: 24px 32px 100px; }
 
@@ -1387,7 +1370,7 @@ body {
   .stats-bar { gap: 12px; }
 }
 
-/* ── 大屏 (1200px+) ────────────────────────── */
+/* 鈹€鈹€ 澶у睆 (1200px+) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 @media (min-width: 1200px) {
   .app-container { padding: 28px 40px 100px; }
 
@@ -1400,7 +1383,7 @@ body {
   .header-title { font-size: 24px; }
 }
 
-/* ── 安全区域适配（刘海屏等）──────────────── */
+/* 鈹€鈹€ 瀹夊叏鍖哄煙閫傞厤锛堝垬娴峰睆绛夛級鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 @supports (padding: max(0px)) {
   .app-container {
     padding-left: max(16px, env(safe-area-inset-left, 16px));
@@ -1412,3 +1395,4 @@ body {
     right: max(24px, env(safe-area-inset-right, 24px));
   }
 }
+

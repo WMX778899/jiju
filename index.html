@@ -44,13 +44,8 @@
       </div>
     </header>
 
-    <!-- ===== 搜索与筛选栏 ===== -->
+    <!-- ===== 筛选栏 ===== -->
     <section class="filter-bar">
-      <div class="search-wrapper">
-        <i class="fas fa-search search-icon"></i>
-        <input type="text" id="searchInput" class="search-input" placeholder="搜索标题…">
-        <button class="search-clear" id="searchClear"><i class="fas fa-times"></i></button>
-      </div>
       <div class="filter-group">
         <div class="filter-select-wrapper">
           <select id="typeFilter" class="filter-select">
@@ -82,20 +77,32 @@
     <!-- ===== 统计栏 ===== -->
     <section class="stats-bar" id="statsBar">
       <div class="stat-item" data-status="want_to_watch">
-        <span class="stat-count" id="statWant">0</span>
-        <span class="stat-label"><i class="fa-regular fa-clock" style="color:var(--want-color)"></i> 想看</span>
+        <div class="stat-top">
+          <span class="stat-count" id="statWant">0</span>
+          <span class="stat-label"><i class="fa-regular fa-clock" style="color:var(--want-color)"></i> 想看</span>
+        </div>
+        <input type="text" class="stat-search" data-s="want_to_watch" placeholder="搜标题…">
       </div>
       <div class="stat-item" data-status="watching">
-        <span class="stat-count" id="statWatching">0</span>
-        <span class="stat-label"><i class="fa-solid fa-play" style="color:var(--watching-color)"></i> 在看</span>
+        <div class="stat-top">
+          <span class="stat-count" id="statWatching">0</span>
+          <span class="stat-label"><i class="fa-solid fa-play" style="color:var(--watching-color)"></i> 在看</span>
+        </div>
+        <input type="text" class="stat-search" data-s="watching" placeholder="搜标题…">
       </div>
       <div class="stat-item" data-status="completed">
-        <span class="stat-count" id="statCompleted">0</span>
-        <span class="stat-label"><i class="fa-solid fa-check" style="color:var(--completed-color)"></i> 看完</span>
+        <div class="stat-top">
+          <span class="stat-count" id="statCompleted">0</span>
+          <span class="stat-label"><i class="fa-solid fa-check" style="color:var(--completed-color)"></i> 看完</span>
+        </div>
+        <input type="text" class="stat-search" data-s="completed" placeholder="搜标题…">
       </div>
       <div class="stat-item" data-status="all">
-        <span class="stat-count" id="statAll">0</span>
-        <span class="stat-label"><i class="fa-solid fa-border-all"></i> 全部</span>
+        <div class="stat-top">
+          <span class="stat-count" id="statAll">0</span>
+          <span class="stat-label"><i class="fa-solid fa-border-all"></i> 全部</span>
+        </div>
+        <input type="text" class="stat-search" data-s="all" placeholder="搜标题…">
       </div>
     </section>
 
