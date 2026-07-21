@@ -991,37 +991,26 @@ function showGitHubStatus(msg, isError) {
 // 启动
 // ============================================================
 
-document.addEventListener('DOMContentLoaded', () => {
-  // 初始化本地数据存储
-  AnimeDB.init();
+document.addEventListener('DOMContentLoaded', async () => {
+  // 从 GitHub CDN 拉取数据（不再从 localStorage）
+  const defaultRepo = typeof GITHUB_DEFAULT_REPO !== 'undefined' ? GITHUB_DEFAULT_REPO : '';
 
-  // 从 URL 参数自动读取 token（用于跨设备首次配置）
-  // 用法: https://.../?token=ghp_xxxxx
+  // URL 参数 token（跨设备首次配置）
   const urlParams = new URLSearchParams(window.location.search);
   const urlToken = urlParams.get('token');
   let cfg = AnimeDB.getGitHubConfig();
-  const defaultToken = typeof GITHUB_DEFAULT_TOKEN !== 'undefined' ? GITHUB_DEFAULT_TOKEN : '';
-  const defaultRepo = typeof GITHUB_DEFAULT_REPO !== 'undefined' ? GITHUB_DEFAULT_REPO : '';
 
-  if (!cfg && urlToken) {
-    // 从 URL 拿到 token，存到 localStorage
-    AnimeDB.saveGitHubConfig({ token: urlToken, repo: defaultRepo || 'WMX778899/jiju' });
+  if (urlToken) {
+    AnimeDB.saveGitHubConfig({ token: urlToken, repo: cfg ? cfg.repo : defaultRepo });
     cfg = AnimeDB.getGitHubConfig();
-    // 清理 URL 中的 token
     window.history.replaceState({}, '', window.location.pathname + window.location.hash);
-  } else if (!cfg && defaultToken) {
-    AnimeDB.saveGitHubConfig({ token: defaultToken, repo: defaultRepo });
-    cfg = AnimeDB.getGitHubConfig();
   }
 
-  if (cfg) {
-    document.getElementById('githubToken').value = cfg.token || '';
-    document.getElementById('githubRepo').value = cfg.repo || '';
-    if (cfg.token) updateSyncUI('connected', '云端');
-    else updateSyncUI('local');
-  } else {
-    updateSyncUI('local');
-  }
+  // 从云端加载数据
+  updateSyncUI('syncing');
+  try {
+    await AnimeDB.init(defaultRepo);
+  } catch { updateSyncUI('local'); }
 
   // 启动应用
   new AniListApp();
@@ -1036,14 +1025,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (githubBtn && githubModal) {
     const openGithubModal = () => {
-      let c = AnimeDB.getGitHubConfig();
-      // 如果本地没有配置，用全局默认值兜底
-      if (!c && defaultToken) {
-        AnimeDB.saveGitHubConfig({ token: defaultToken, repo: defaultRepo });
-        c = AnimeDB.getGitHubConfig();
-      }
-      document.getElementById('githubToken').value = c ? c.token : (defaultToken || '');
-      document.getElementById('githubRepo').value = c ? c.repo : (defaultRepo || '');
+      const c = AnimeDB.getGitHubConfig();
+      document.getElementById('githubToken').value = c ? (c.token || '') : '';
+      document.getElementById('githubRepo').value = c ? (c.repo || '') : (defaultRepo || '');
       githubModal.classList.add('open');
       document.body.style.overflow = 'hidden';
     };
@@ -1078,7 +1062,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showGitHubStatus('正在上传…');
       updateSyncUI('syncing');
       try {
-        const result = await AnimeDB.pushToGitHub();
+        await AnimeDB.push();
         showGitHubStatus('✅ 上传成功！');
         updateSyncUI('connected', '云端');
       } catch (e) {
@@ -1091,18 +1075,18 @@ document.addEventListener('DOMContentLoaded', () => {
     githubPullBtn.addEventListener('click', async () => {
       const token = document.getElementById('githubToken').value.trim();
       const repo = document.getElementById('githubRepo').value.trim();
-      if (!token || !repo) {
-        showGitHubStatus('请填写 Token 和仓库名', true);
+      if (!repo) {
+        showGitHubStatus('请填写仓库名', true);
         return;
       }
       AnimeDB.saveGitHubConfig({ token, repo });
       showGitHubStatus('正在下载…');
       updateSyncUI('syncing');
       try {
-        const result = await AnimeDB.pullFromGitHub();
-        showGitHubStatus(`✅ 已合并 ${result.count} 条云端数据`);
+        await AnimeDB.init(repo);
+        const count = AnimeDB.getAll().length;
+        showGitHubStatus(`✅ 已加载 ${count} 条云端数据`);
         updateSyncUI('connected', '云端');
-        // 刷新界面
         const app = window.__anilistApp;
         if (app) app.render();
       } catch (e) {
@@ -1129,36 +1113,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 1200);
     })();
   }
-
-  // ===== 自动云同步：每次打开/刷新页面时自动从 GitHub 拉取 =====
-  async function autoPullFromGitHub() {
-    const cfg = AnimeDB.getGitHubConfig();
-    // 优先用已保存的 repo，其次用 HTML 中硬编码的仓库名
-    const defaultRepo = typeof GITHUB_DEFAULT_REPO !== 'undefined' ? GITHUB_DEFAULT_REPO : '';
-    const repo = (cfg && cfg.repo) || defaultRepo;
-    if (!repo) return;
-
-    try {
-      updateSyncUI('syncing');
-      // 公开仓库无需 token 也能读取
-      const result = await AnimeDB.pullFromGitHub(repo);
-      updateSyncUI('connected', '云端');
-      const app = window.__anilistApp;
-      if (app) app.render();
-      if (result.count > 0) {
-        showToast('☁️ 已自动同步 ' + result.count + ' 条云端数据');
-      }
-    } catch (e) {
-      // 静默失败：云端无数据或网络问题不影响本地使用
-      if (cfg && cfg.token) {
-        updateSyncUI('connected', '云端');
-      } else {
-        updateSyncUI('local');
-      }
-    }
-  }
-
-  setTimeout(autoPullFromGitHub, 600);
 
   // Escape 键关闭
   document.addEventListener('keydown', (e) => {
