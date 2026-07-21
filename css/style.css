@@ -1331,6 +1331,11 @@ body {
   .confetti-piece { font-size: 12px !important; }
 
   .toast-container { bottom: 80px; }
+
+  /* Token 密码查看：iOS 防止自动缩放 + 小屏适配 */
+  #tokenRevealPwd { font-size: 16px; }
+  #tokenRevealGate > div { flex-wrap: wrap; }
+  #tokenRevealGate > div > button { width: 100%; }
 }
 
 /* 鈹€鈹€ 骞虫澘 (600~959px) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
