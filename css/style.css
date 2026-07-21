@@ -440,13 +440,8 @@ body {
 }
 
 .search-row .stat-search-wrap {
-  flex: 1;
-  min-width: 0;
   position: relative;
-  display: none;
-}
-.search-row .stat-search-wrap.active {
-  display: block;
+  width: 100%;
 }
 
 .search-row .stat-search-wrap i {

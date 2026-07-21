@@ -460,7 +460,7 @@ class AniListApp {
     this.currentType = 'all';
     this.currentStatus = 'want_to_watch';
     this.currentSort = 'newest';
-    this.searchQueries = { all: '', want_to_watch: '', watching: '', completed: '' };
+    this.searchQuery = '';
     this.prevStats = { all: 0, watching: 0, want_to_watch: 0, completed: 0 };
     /** 待撤销的删除记录 { id -> entryData } */
     this.pendingDeletes = {};
@@ -496,8 +496,8 @@ class AniListApp {
     this.emptyState = this.$('emptyState');
     this.emptyText = this.$('emptyText');
 
-    // 搜索行
-    this.searchRow = this.$('searchRow');
+    // 搜索
+    this.searchInput = this.$('globalSearch');
 
     // 筛选
     this.typeFilter = this.$('typeFilter');
@@ -540,14 +540,9 @@ class AniListApp {
   }
 
   bindEvents() {
-    // 独立搜索——每个标签自己的搜索框
-    this.searchRow.addEventListener('input', (e) => {
-      const input = e.target.closest('.stat-search');
-      if (!input) return;
-      const wrap = input.closest('.stat-search-wrap');
-      if (!wrap) return;
-      const status = wrap.dataset.s;
-      this.searchQueries[status] = input.value;
+    // 全局搜索（按当前模块过滤）
+    this.searchInput.addEventListener('input', (e) => {
+      this.searchQuery = e.target.value;
       this.render();
     });
 
@@ -842,8 +837,8 @@ class AniListApp {
     const prevHeight = listContainer.offsetHeight;
     if (prevHeight > 0) listContainer.style.minHeight = prevHeight + 'px';
 
-    // 获取并筛选数据（使用当前标签独立的搜索词）
-    const query = this.searchQueries[this.currentStatus] || '';
+    // 获取并筛选数据（搜索词应用于当前模块）
+    const query = this.searchQuery;
     let entries = AnimeDB.search({
       query,
       type: this.currentType,
@@ -855,15 +850,6 @@ class AniListApp {
 
     // 渲染统计
     this.renderStats();
-
-    // 只显示当前标签的搜索框
-    this.searchRow.querySelectorAll('.stat-search-wrap').forEach(w => w.classList.remove('active'));
-    const showWrap = this.searchRow.querySelector(`.stat-search-wrap[data-s="${this.currentStatus}"]`);
-    if (showWrap) {
-      showWrap.classList.add('active');
-      const input = showWrap.querySelector('.stat-search');
-      if (input && input.value !== query) input.value = query;
-    }
 
     // 空状态
     const allEmpty = AnimeDB.getAll().length === 0;
