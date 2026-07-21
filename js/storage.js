@@ -150,7 +150,7 @@ class AnimeDB {
     const idx = this._cache.findIndex(e => e.id === id);
     if (idx === -1) return false;
     this._cache.splice(idx, 1);
-    this._pushToGithub(true);  // 立即推
+    this._pushToGithub(false);  // 立即推，显示结果
     this.scheduleUndoPush();   // 5 分钟后二次确认
     return true;
   }
@@ -161,7 +161,7 @@ class AnimeDB {
     if (this._cache.some(e => e.id === entry.id)) return entry;
     this._cache.unshift(entry);
     this.cancelUndoPush();
-    this._pushToGithub(true);
+    this._pushToGithub(false);
     return entry;
   }
 
@@ -191,7 +191,7 @@ class AnimeDB {
       createdAt: e.createdAt || new Date().toISOString(),
     }));
     this._cache = entries;
-    this._pushToGithub(true);
+    this._pushToGithub(false);
     return entries.length;
   }
 
@@ -199,7 +199,7 @@ class AnimeDB {
   static reset() {
     this._ensureLoaded();
     this._cache = [];
-    this._pushToGithub(true);
+    this._pushToGithub(false);
   }
 
   // ===== 云端推送核心 =====
@@ -210,15 +210,18 @@ class AnimeDB {
   }
 
   static _pushAfterChange() {
-    this._pushToGithub(true).catch(() => {});
+    // 不静默——push 失败要告知用户，否则刷新数据就丢了
+    this._pushToGithub(false).catch(() => {});
   }
 
   static async _pushToGithub(silent) {
     const cfg = this.getGitHubConfig();
     if (!cfg || !cfg.token || !cfg.repo) {
-      if (!silent && typeof showToast === 'function') {
-        showToast('⚠️ 未配置 GitHub Token，数据仅保留在当前会话', 'error');
+      // 没有 token 时一定要提示——否则用户不知道数据没保存
+      if (typeof showToast === 'function') {
+        showToast('⚠️ 未配置 Token，点右上角 GitHub 图标配置', 'error');
       }
+      this._setStatus('error');
       return;
     }
 
