@@ -103,7 +103,7 @@ class AnimeDB {
     return { count: entries.length };
   }
 
-  /** 上传数据到 GitHub（自动重试） */
+  /** 上传数据到 GitHub（每次重试都获取最新 sha） */
   static async pushToGitHub() {
     const cfg = this.getGitHubConfig();
     if (!cfg || !cfg.token || !cfg.repo) throw new Error('未配置 GitHub');
@@ -113,33 +113,36 @@ class AnimeDB {
       JSON.stringify({ version: 1, updatedAt: new Date().toISOString(), entries: this._cache }, null, 2)
     );
 
-    // 先尝试获取已有文件的 sha
-    let sha = cfg._sha;
-    if (!sha) {
+    /** 获取 data.json 当前的最新 sha */
+    const fetchSha = async () => {
       try {
-        const check = await fetch(
+        const r = await fetch(
           `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
           { headers: { Authorization: `Bearer ${cfg.token}` } }
         );
-        if (check.ok) {
-          const existing = await check.json();
-          sha = existing.sha;
-          cfg._sha = sha;
+        if (r.ok) {
+          const d = await r.json();
+          cfg._sha = d.sha;
           this.saveGitHubConfig(cfg);
+          return d.sha;
         }
-      } catch { /* 文件不存在，走新建 */ }
-    }
-
-    const body = {
-      message: `📝 AniList 数据同步 ${new Date().toLocaleString('zh-CN')}`,
-      content,
+      } catch { /* 首次上传，文件还不存在 */ }
+      return null;
     };
-    if (sha) body.sha = sha;
 
-    // 重试最多 3 次，应对网络不稳定
+    // 重试最多 5 次
     let lastErr;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 5; attempt++) {
       try {
+        // 每次重试都重新获取最新 sha，彻底避免 409 冲突
+        const sha = await fetchSha();
+
+        const body = {
+          message: `📝 AniList 数据同步 ${new Date().toLocaleString('zh-CN')}`,
+          content,
+        };
+        if (sha) body.sha = sha;
+
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
         const res = await fetch(
@@ -163,33 +166,18 @@ class AnimeDB {
           return { sha: result.content.sha };
         }
 
-        // 409 冲突：sha 已过时（其他设备已更新），重新获取最新 sha 再重试
-        if (res.status === 409) {
-          try {
-            const check = await fetch(
-              `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
-              { headers: { Authorization: `Bearer ${cfg.token}` } }
-            );
-            if (check.ok) {
-              const existing = await check.json();
-              sha = existing.sha;
-              body.sha = sha;
-              cfg._sha = sha;
-              this.saveGitHubConfig(cfg);
-              // 重试（用新 sha）
-              lastErr = new Error('冲突，用新 sha 重试');
-              continue;
-            }
-          } catch { /* 获取 sha 失败，继续正常重试 */ }
-        }
-
         lastErr = new Error(`GitHub API 错误: ${res.status}`);
+        // 409 冲突：sha 又在瞬间被改了，短暂等待后重试（fetchSha 会拿到最新值）
+        if (res.status === 409) {
+          await new Promise(r => setTimeout(r, 1500));
+          continue;
+        }
       } catch (e) {
         lastErr = e;
         if (e.name === 'AbortError') lastErr = new Error('连接超时，请检查网络');
       }
-      // 重试前等待 1 秒
-      if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+      // 普通重试等待
+      if (attempt < 4) await new Promise(r => setTimeout(r, 1000));
     }
     throw lastErr;
   }
