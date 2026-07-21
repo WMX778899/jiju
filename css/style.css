@@ -430,6 +430,11 @@ body {
   cursor: pointer;
   transition: var(--transition);
   user-select: none;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 /* ===== 搜索行 ===== */
