@@ -67,29 +67,22 @@ class AnimeDB {
     localStorage.removeItem(this.GITHUB_CONFIG_KEY);
   }
 
-  /** 从 GitHub 拉取数据（支持无 token 读取公开仓库） */
+  /** 从 GitHub 拉取数据（通过 raw CDN，全球加速、无需 token） */
   static async pullFromGitHub(repoOverride) {
     const cfg = this.getGitHubConfig();
     const repo = repoOverride || (cfg ? cfg.repo : null);
     if (!repo) throw new Error('未配置仓库');
 
     const [owner, name] = repo.split('/');
-    // 公开仓库可无 token 读取，有 token 则带上提升频率限制
-    const headers = {};
-    if (cfg && cfg.token) headers['Authorization'] = `Bearer ${cfg.token}`;
-
-    const res = await fetch(
-      `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
-      { headers }
-    );
+    // 使用 raw.githubusercontent.com CDN 读取，比 API 更快更稳定
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${name}/main/data.json`;
+    const res = await fetch(rawUrl);
     if (!res.ok) {
       if (res.status === 404) throw new Error('仓库中还没有 data.json，请先上传');
-      throw new Error(`GitHub API 错误: ${res.status}`);
+      throw new Error(`读取失败: ${res.status}`);
     }
 
-    const d = await res.json();
-    const content = _base64ToUtf8(d.content);
-    const remote = JSON.parse(content);
+    const remote = await res.json();
     const entries = Array.isArray(remote) ? remote : (remote.entries || []);
 
     // 直接用云端数据替换本地（覆盖模式）
@@ -99,7 +92,7 @@ class AnimeDB {
       this._notify();
     }
 
-    return { count: entries.length, sha: d.sha };
+    return { count: entries.length };
   }
 
   /** 上传数据到 GitHub */
