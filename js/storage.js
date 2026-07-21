@@ -85,9 +85,17 @@ class AnimeDB {
     const remote = await res.json();
     const entries = Array.isArray(remote) ? remote : (remote.entries || []);
 
-    // 直接用云端数据替换本地（覆盖模式）
+    // 合并模式：云端为基准，保留本地有但云端没有的条目
+    // 这样即使上传失败，本地新增的数据也不会被覆盖丢失
     if (entries.length > 0) {
-      this._cache = entries;
+      const cloudIds = new Set(entries.map(e => e.id));
+      const merged = [...entries];
+      for (const local of this._cache) {
+        if (!cloudIds.has(local.id)) {
+          merged.push(local);
+        }
+      }
+      this._cache = merged;
       this._saveLocal();
       this._notify();
     }
