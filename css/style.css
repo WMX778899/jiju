@@ -131,8 +131,7 @@ body {
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-color);
   color: var(--text-muted);
-  pointer-events: auto;
-  cursor: pointer;
+  pointer-events: none;
   transition: var(--transition);
   animation: fadeInDown 0.4s ease;
 }
@@ -156,13 +155,6 @@ body {
 .sync-status.sync-local {
   border-color: rgba(107, 114, 128, 0.3);
   color: var(--text-muted);
-}
-
-.sync-status:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: rgba(168, 85, 247, 0.12);
-  box-shadow: 0 0 16px var(--accent-glow);
 }
 
 @keyframes spin {
@@ -1702,63 +1694,3 @@ body {
   .gate-error { font-size: 12px; margin-top: 12px; }
 }
 
-/* ============================================================
-   Token 密码门禁弹窗
-   ============================================================ */
-.token-body { padding: 4px 0; }
-
-.token-password-gate {
-  display: flex;
-  flex-direction: column;
-}
-
-.token-display {
-  text-align: center;
-}
-
-.token-value-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 12px 14px;
-}
-
-.token-value {
-  flex: 1;
-  font-size: 13px;
-  color: var(--accent-hover);
-  word-break: break-all;
-  line-height: 1.4;
-  font-family: var(--font-main);
-  user-select: all;
-}
-
-.token-copy-btn {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: var(--transition);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-}
-
-.token-copy-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: rgba(168, 85, 247, 0.08);
-}
-
-.token-copy-btn.copied {
-  border-color: var(--success);
-  color: var(--success);
-}
