@@ -443,6 +443,10 @@ body {
   flex: 1;
   min-width: 0;
   position: relative;
+  display: none;
+}
+.search-row .stat-search-wrap.active {
+  display: block;
 }
 
 .search-row .stat-search-wrap i {

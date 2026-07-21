@@ -544,7 +544,9 @@ class AniListApp {
     this.searchRow.addEventListener('input', (e) => {
       const input = e.target.closest('.stat-search');
       if (!input) return;
-      const status = input.dataset.s;
+      const wrap = input.closest('.stat-search-wrap');
+      if (!wrap) return;
+      const status = wrap.dataset.s;
       this.searchQueries[status] = input.value;
       this.render();
     });
@@ -854,9 +856,14 @@ class AniListApp {
     // 渲染统计
     this.renderStats();
 
-    // 同步当前标签的搜索框值
-    const activeSearch = this.searchRow.querySelector(`.stat-search[data-s="${this.currentStatus}"]`);
-    if (activeSearch && activeSearch.value !== query) activeSearch.value = query;
+    // 只显示当前标签的搜索框
+    this.searchRow.querySelectorAll('.stat-search-wrap').forEach(w => w.classList.remove('active'));
+    const showWrap = this.searchRow.querySelector(`.stat-search-wrap[data-s="${this.currentStatus}"]`);
+    if (showWrap) {
+      showWrap.classList.add('active');
+      const input = showWrap.querySelector('.stat-search');
+      if (input && input.value !== query) input.value = query;
+    }
 
     // 空状态
     const allEmpty = AnimeDB.getAll().length === 0;
