@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="css/style.css">
   <style>
+    /* 门禁页专用：全屏粒子背景 */
     body { margin: 0; overflow: hidden; background: #0b0a12; }
     #particleCanvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
   </style>
@@ -19,24 +20,13 @@
   <canvas id="particleCanvas"></canvas>
 
   <div class="gate-wrap" id="gateWrap">
-    <div class="gate-card">
-
-      <div class="gate-brand">
-        <i class="fa-solid fa-wand-magic-sparkles"></i>
-        <span>AniList</span>
+    <div class="gate-box" id="gateBox">
+      <div class="gate-input-wrap">
+        <input type="password" id="gatePassword" class="gate-input" placeholder="✦ 密码" autocomplete="off" spellcheck="false" />
+        <div class="gate-input-glow"></div>
       </div>
-      <p class="gate-desc">输入密码进入</p>
-
-      <div class="gate-field">
-        <div class="gate-input-box">
-          <i class="fa-solid fa-lock gate-input-icon"></i>
-          <input type="password" id="gatePassword" class="gate-input" placeholder="密码" autocomplete="off" spellcheck="false" />
-        </div>
-        <p class="gate-error" id="gateError">密码错误，请重试</p>
-      </div>
-
-      <button class="gate-btn" id="gateBtn">确 认</button>
-
+      <p class="gate-error" id="gateError">✧ 密码错误</p>
+      <button class="gate-btn" id="gateBtn"><i class="fa-solid fa-arrow-right-to-bracket"></i> 进 入</button>
     </div>
   </div>
 
@@ -47,6 +37,7 @@
 
       const PASSWORD = 'anime2024'; // ← 在这里改密码
 
+      // 粒子背景
       var c = document.getElementById('particleCanvas');
       if (c) new ParticleBackground(c);
 
@@ -55,32 +46,27 @@
       var error = document.getElementById('gateError');
       var wrap = document.getElementById('gateWrap');
 
+      // 已通过直接跳
       if (sessionStorage.getItem('anilist_gate_passed') === '1') {
         window.location.replace('app.html');
         return;
       }
 
-      // 移除错误状态
-      function clearError() {
-        error.classList.remove('show');
-        input.classList.remove('shake');
-        input.parentElement.classList.remove('error');
-      }
-
       function tryEnter() {
         if (input.value === PASSWORD) {
+          sessionStorage.setItem('anilist_gate_passed', '1');
           btn.disabled = true;
+          input.classList.remove('shake');
+          input.classList.add('success');
           input.disabled = true;
-          input.parentElement.classList.remove('error');
-          input.parentElement.classList.add('success');
           setTimeout(function() {
             wrap.style.opacity = '0';
-            wrap.style.transition = 'opacity 0.5s ease';
-            setTimeout(function() { window.location.replace('app.html'); }, 500);
-          }, 400);
+            wrap.style.transition = 'opacity 0.4s ease';
+            setTimeout(function() { window.location.replace('app.html'); }, 400);
+          }, 300);
         } else {
+          input.classList.remove('success');
           input.classList.add('shake');
-          input.parentElement.classList.add('error');
           error.classList.add('show');
           input.value = '';
           input.blur();
@@ -96,7 +82,11 @@
       });
 
       btn.addEventListener('click', tryEnter);
-      input.addEventListener('input', clearError);
+
+      input.addEventListener('input', function() {
+        error.classList.remove('show');
+        input.classList.remove('shake');
+      });
 
       setTimeout(function() { input.focus(); }, 600);
     })();
