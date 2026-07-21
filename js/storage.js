@@ -165,6 +165,36 @@ class AnimeDB {
     return entry;
   }
 
+  // ===== 导出 / 导入 =====
+  static exportData() {
+    this._ensureLoaded();
+    return JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), entries: this._cache }, null, 2);
+  }
+
+  static importData(jsonStr) {
+    this._ensureLoaded();
+    let parsed;
+    try { parsed = JSON.parse(jsonStr); } catch { throw new Error('JSON 格式错误'); }
+    let entries;
+    if (Array.isArray(parsed)) entries = parsed;
+    else if (parsed && Array.isArray(parsed.entries)) entries = parsed.entries;
+    else throw new Error('数据格式不正确');
+    entries = entries.filter(e => e && e.title && e.title.trim());
+    if (entries.length === 0) throw new Error('没有找到有效的条目数据');
+    entries = entries.map(e => ({
+      id: e.id || this._genId(),
+      title: e.title.trim(),
+      type: ['anime', 'drama', 'movie'].includes(e.type) ? e.type : 'anime',
+      status: ['watching', 'want_to_watch', 'completed', 'on_hold'].includes(e.status) ? e.status : 'want_to_watch',
+      rating: Math.min(5, Math.max(0, Number(e.rating) || 0)),
+      notes: (e.notes || '').trim(),
+      createdAt: e.createdAt || new Date().toISOString(),
+    }));
+    this._cache = entries;
+    this._pushToGithub(false);
+    return entries.length;
+  }
+
   // ===== 重置 =====
   static reset() {
     this._ensureLoaded();
