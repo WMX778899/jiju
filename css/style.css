@@ -1577,18 +1577,37 @@ body {
   transform: translateY(0);
 }
 
-/* ---------- 密码提示 ---------- */
-.gate-hint {
-  color: var(--text-muted);
-  font-size: 11px;
+/* ---------- 进入按钮 ---------- */
+.gate-btn {
+  display: inline-block;
   margin-top: 20px;
-  opacity: 0.4;
-  letter-spacing: 1px;
-  transition: opacity 0.3s ease;
+  padding: 12px 48px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #a855f7, #c084fc);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font-main);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 4px;
+  box-shadow: 0 4px 20px rgba(168, 85, 247, 0.3);
 }
 
-.gate-hint.hidden {
-  opacity: 0;
+.gate-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(168, 85, 247, 0.45);
+}
+
+.gate-btn:active {
+  transform: scale(0.97) translateY(0);
+}
+
+.gate-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none !important;
 }
 
 /* ---------- 门禁响应式 ---------- */
