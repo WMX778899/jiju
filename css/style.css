@@ -1425,9 +1425,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(8, 6, 16, 0.55);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(8, 6, 16, 0.35);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 
 /* ---------- 输入框容器 ---------- */
