@@ -32,33 +32,37 @@ class AnimeDB {
     const headers = {};
     if (cfg && cfg.token) headers['Authorization'] = `Bearer ${cfg.token}`;
 
-    // 按顺序尝试读取数据：GitHub Pages（同域最稳）→ API → CDN
+    // 先尝试 GitHub API（实时）
+    // 如果失败则 fallback 到 raw CDN（可能有缓存延迟）
     let data = null;
-    const readSources = [
-      // 1. GitHub Pages（同域，无需 API key，最稳定）
-      { url: `/${name}/data.json`, json: true },
-      // 2. GitHub API（实时数据，需 token 或 60次/小时）
-      { url: `https://api.github.com/repos/${owner}/${name}/contents/data.json`, json: false, headers },
-      // 3. raw CDN
-      { url: `https://raw.githubusercontent.com/${owner}/${name}/main/data.json`, json: true },
-      // 4. jsdelivr CDN
-      { url: `https://cdn.jsdelivr.net/gh/${owner}/${name}@main/data.json`, json: true },
-    ];
-    for (const src of readSources) {
-      if (data) break;
-      try {
-        const res = await fetch(src.url, { headers: src.headers || {}, cache: 'no-cache' });
-        if (!res.ok) continue;
-        if (src.json) {
-          data = await res.json();
-        } else {
-          const d = await res.json();
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
+        { headers }
+      );
+      if (res.ok) {
+        const d = await res.json();
+        const decoded = (() => {
           const raw = atob(d.content);
           const bytes = new Uint8Array(raw.length);
           for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-          data = JSON.parse(new TextDecoder().decode(bytes));
-          if (cfg && cfg.token) { cfg._sha = d.sha; this.saveGitHubConfig(cfg); }
-        }
+          return new TextDecoder().decode(bytes);
+        })();
+        data = JSON.parse(decoded);
+        if (cfg && cfg.token) { cfg._sha = d.sha; this.saveGitHubConfig(cfg); }
+      }
+    } catch { /* API 不通，走 CDN 备选 */ }
+
+    // API 失败时尝试多个 CDN 备选
+    const cdns = [
+      `https://raw.githubusercontent.com/${owner}/${name}/main/data.json`,
+      `https://cdn.jsdelivr.net/gh/${owner}/${name}@main/data.json`,
+    ];
+    for (const url of cdns) {
+      if (data) break;
+      try {
+        const res = await fetch(url, { cache: 'no-cache' });
+        if (res.ok) data = await res.json();
       } catch {}
     }
 
