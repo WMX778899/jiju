@@ -130,6 +130,32 @@ class AnimeDB {
       return null;
     };
 
+    // 先探查一下 API 是否可达、文件是否存在
+    const probeSha = await fetchSha();
+    if (probeSha === null) {
+      // 可能是首次上传（文件不存在），也可能是 API 不通
+      // 用不带 sha 的 PUT 试一下，如果返回 409 说明文件已存在但 API 拿不到 sha
+      const probeRes = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
+        {
+          method: 'PUT', headers: { Authorization: `Bearer ${cfg.token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '📝 AniList 数据同步', content }),
+        }
+      );
+      if (probeRes.ok) {
+        const r = await probeRes.json();
+        cfg._sha = r.content.sha;
+        this.saveGitHubConfig(cfg);
+        return { sha: r.content.sha };
+      }
+      if (probeRes.status === 409) {
+        // 文件存在但 fetchSha 失败了 → API 有问题
+        const errBody = await probeRes.json().catch(() => ({}));
+        throw new Error('无法连接 GitHub API: ' + (errBody.message || '请检查网络或 Token 权限'));
+      }
+      throw new Error(`GitHub API 错误: ${probeRes.status}`);
+    }
+
     // 重试最多 5 次
     let lastErr;
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -167,8 +193,11 @@ class AnimeDB {
         }
 
         lastErr = new Error(`GitHub API 错误: ${res.status}`);
-        // 409 冲突：sha 又在瞬间被改了，短暂等待后重试（fetchSha 会拿到最新值）
         if (res.status === 409) {
+          try {
+            const errBody = await res.json();
+            lastErr = new Error('冲突: ' + (errBody.message || 'sha 已过时'));
+          } catch {}
           await new Promise(r => setTimeout(r, 1500));
           continue;
         }
@@ -176,7 +205,6 @@ class AnimeDB {
         lastErr = e;
         if (e.name === 'AbortError') lastErr = new Error('连接超时，请检查网络');
       }
-      // 普通重试等待
       if (attempt < 4) await new Promise(r => setTimeout(r, 1000));
     }
     throw lastErr;
