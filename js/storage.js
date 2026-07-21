@@ -162,6 +162,27 @@ class AnimeDB {
           this.saveGitHubConfig(cfg);
           return { sha: result.content.sha };
         }
+
+        // 409 冲突：sha 已过时（其他设备已更新），重新获取最新 sha 再重试
+        if (res.status === 409) {
+          try {
+            const check = await fetch(
+              `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
+              { headers: { Authorization: `Bearer ${cfg.token}` } }
+            );
+            if (check.ok) {
+              const existing = await check.json();
+              sha = existing.sha;
+              body.sha = sha;
+              cfg._sha = sha;
+              this.saveGitHubConfig(cfg);
+              // 重试（用新 sha）
+              lastErr = new Error('冲突，用新 sha 重试');
+              continue;
+            }
+          } catch { /* 获取 sha 失败，继续正常重试 */ }
+        }
+
         lastErr = new Error(`GitHub API 错误: ${res.status}`);
       } catch (e) {
         lastErr = e;
