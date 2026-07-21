@@ -103,7 +103,7 @@ class AnimeDB {
     return { count: entries.length };
   }
 
-  /** 上传数据到 GitHub（每次重试都获取最新 sha） */
+  /** 上传数据到 GitHub（自动重试 + CORS 代理回退） */
   static async pushToGitHub() {
     const cfg = this.getGitHubConfig();
     if (!cfg || !cfg.token || !cfg.repo) throw new Error('未配置 GitHub');
@@ -113,77 +113,73 @@ class AnimeDB {
       JSON.stringify({ version: 1, updatedAt: new Date().toISOString(), entries: this._cache }, null, 2)
     );
 
-    /** 获取 data.json 当前的最新 sha */
-    const fetchSha = async () => {
+    /** 获取 sha */
+    const ghFetch = async (path, opts) => {
+      const url = `https://api.github.com/repos/${owner}/${repo}/${path}`;
+      try { return await fetch(url, opts); } catch { return null; }
+    };
+    /** 通过 CORS 代理获取 sha（直连失败时回退） */
+    const proxyFetch = async (path, opts) => {
+      const url = `https://api.github.com/repos/${owner}/${repo}/${path}`;
       try {
-        const r = await fetch(
-          `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
-          { headers: { Authorization: `Bearer ${cfg.token}` } }
-        );
-        if (r.ok) {
+        return await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, opts);
+      } catch { return null; }
+    };
+
+    /** 获取最新 sha（直连 → 代理回退） */
+    const fetchSha = async () => {
+      const opts = { headers: { Authorization: `Bearer ${cfg.token}` } };
+      let r = await ghFetch('contents/data.json', opts);
+      if (!r || !r.ok) r = await proxyFetch('contents/data.json', opts);
+      if (r && r.ok) {
+        try {
           const d = await r.json();
           cfg._sha = d.sha;
           this.saveGitHubConfig(cfg);
           return d.sha;
-        }
-      } catch { /* 首次上传，文件还不存在 */ }
+        } catch {}
+      }
       return null;
     };
 
-    // 先探查一下 API 是否可达、文件是否存在
-    const probeSha = await fetchSha();
-    if (probeSha === null) {
-      // 可能是首次上传（文件不存在），也可能是 API 不通
-      // 用不带 sha 的 PUT 试一下，如果返回 409 说明文件已存在但 API 拿不到 sha
-      const probeRes = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
-        {
-          method: 'PUT', headers: { Authorization: `Bearer ${cfg.token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: '📝 AniList 数据同步', content }),
-        }
-      );
-      if (probeRes.ok) {
-        const r = await probeRes.json();
-        cfg._sha = r.content.sha;
-        this.saveGitHubConfig(cfg);
-        return { sha: r.content.sha };
-      }
-      if (probeRes.status === 409) {
-        // 文件存在但 fetchSha 失败了 → API 有问题
-        const errBody = await probeRes.json().catch(() => ({}));
-        throw new Error('无法连接 GitHub API: ' + (errBody.message || '请检查网络或 Token 权限'));
-      }
-      throw new Error(`GitHub API 错误: ${probeRes.status}`);
-    }
+    /** 发起 PUT（直连 → 代理回退） */
+    const sendPut = async (body, signal) => {
+      const opts = {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${cfg.token}`, 'Content-Type': 'application/json' },
+        body, signal,
+      };
+      let r = await ghFetch('contents/data.json', opts);
+      if (!r || (!r.ok && r.status === 0)) r = await proxyFetch('contents/data.json', opts);
+      return r;
+    };
+
+    // 先探查文件是否存在（尝试获取 sha）
+    const sha = await fetchSha();
 
     // 重试最多 5 次
     let lastErr;
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        // 每次重试都重新获取最新 sha，彻底避免 409 冲突
-        const sha = await fetchSha();
+        // 每次重试重新获取最新 sha（第一次已获取过，后续重试时重新获取）
+        const currentSha = attempt === 0 ? sha : await fetchSha();
 
         const body = {
           message: `📝 AniList 数据同步 ${new Date().toLocaleString('zh-CN')}`,
           content,
         };
-        if (sha) body.sha = sha;
+        if (currentSha) body.sha = currentSha;
 
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
-        const res = await fetch(
-          `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
-          {
-            method: 'PUT',
-            headers: {
-              Authorization: `Bearer ${cfg.token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body),
-            signal: controller.signal,
-          }
-        );
+        const res = await sendPut(JSON.stringify(body), controller.signal);
         clearTimeout(timeout);
+
+        if (!res) {
+          lastErr = new Error('无法连接到 GitHub，请检查网络');
+          await new Promise(r => setTimeout(r, 2000));
+          continue;
+        }
 
         if (res.ok) {
           const result = await res.json();
@@ -192,7 +188,6 @@ class AnimeDB {
           return { sha: result.content.sha };
         }
 
-        lastErr = new Error(`GitHub API 错误: ${res.status}`);
         if (res.status === 409) {
           try {
             const errBody = await res.json();
@@ -201,6 +196,8 @@ class AnimeDB {
           await new Promise(r => setTimeout(r, 1500));
           continue;
         }
+
+        lastErr = new Error(`GitHub API 错误: ${res.status}`);
       } catch (e) {
         lastErr = e;
         if (e.name === 'AbortError') lastErr = new Error('连接超时，请检查网络');
