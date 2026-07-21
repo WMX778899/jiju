@@ -92,7 +92,7 @@ function showUndoToast(entryId, onUndo, onExpire) {
   toast.className = 'toast undo-toast';
 
   const msg = document.createElement('span');
-  msg.textContent = '已删除 ';
+  msg.textContent = '已删除（5分钟内可撤销）';
   msg.className = 'undo-msg';
 
   const btn = document.createElement('button');
@@ -108,11 +108,11 @@ function showUndoToast(entryId, onUndo, onExpire) {
   toast.appendChild(btn);
   container.appendChild(toast);
 
-  // 10秒后自动消失
+  // 5分钟后自动消失（撤销窗口期）
   const timer = setTimeout(() => {
     removeUndoToast(toast, entryId);
     if (onExpire) onExpire(entryId);
-  }, 10000);
+  }, 300000);
   _undoTimers.set(entryId, timer);
 }
 
@@ -1048,6 +1048,13 @@ document.addEventListener('DOMContentLoaded', () => {
       document.body.style.overflow = 'hidden';
     };
     const closeGithubModal = () => {
+      // 关闭时记录 session 标记，避免本会话反复弹引导
+      sessionStorage.setItem('anilist_gh_dismissed', '1');
+      // 恢复标题（如果是首次配置引导弹窗）
+      const titleEl = githubModal.querySelector('.modal-title');
+      if (titleEl && titleEl.dataset.origTitle) {
+        titleEl.innerHTML = titleEl.dataset.origTitle;
+      }
       githubModal.classList.remove('open');
       document.body.style.overflow = '';
     };
@@ -1103,7 +1110,55 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSyncUI('error');
       }
     });
+
+    // ===== 新设备引导：未配 token 时自动弹出配置窗口 =====
+    (function autoPromptGitHub() {
+      const cfg = AnimeDB.getGitHubConfig();
+      const hasToken = cfg && cfg.token;
+      const dismissed = sessionStorage.getItem('anilist_gh_dismissed');
+      if (hasToken || dismissed) return;
+
+      setTimeout(() => {
+        const titleEl = githubModal.querySelector('.modal-title');
+        if (titleEl) {
+          titleEl.dataset.origTitle = titleEl.innerHTML;
+          titleEl.innerHTML = '<i class="fa-brands fa-github"></i> 首次配置 · 云同步';
+        }
+        showGitHubStatus('🔑 首次使用请填写 GitHub Personal Access Token，仅需配置一次', false);
+        openGithubModal();
+      }, 1200);
+    })();
   }
+
+  // ===== 自动云同步：每次打开/刷新页面时自动从 GitHub 拉取 =====
+  async function autoPullFromGitHub() {
+    const cfg = AnimeDB.getGitHubConfig();
+    // 优先用已保存的 repo，其次用 HTML 中硬编码的仓库名
+    const defaultRepo = typeof GITHUB_DEFAULT_REPO !== 'undefined' ? GITHUB_DEFAULT_REPO : '';
+    const repo = (cfg && cfg.repo) || defaultRepo;
+    if (!repo) return;
+
+    try {
+      updateSyncUI('syncing');
+      // 公开仓库无需 token 也能读取
+      const result = await AnimeDB.pullFromGitHub(repo);
+      updateSyncUI('connected', '云端');
+      const app = window.__anilistApp;
+      if (app) app.render();
+      if (result.count > 0) {
+        showToast('☁️ 已自动同步 ' + result.count + ' 条云端数据');
+      }
+    } catch (e) {
+      // 静默失败：云端无数据或网络问题不影响本地使用
+      if (cfg && cfg.token) {
+        updateSyncUI('connected', '云端');
+      } else {
+        updateSyncUI('local');
+      }
+    }
+  }
+
+  setTimeout(autoPullFromGitHub, 600);
 
   // Escape 键关闭
   document.addEventListener('keydown', (e) => {

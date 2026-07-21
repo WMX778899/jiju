@@ -28,6 +28,8 @@ class AnimeDB {
   /** 同步状态回调 */
   static _syncListeners = [];
   static _syncStatus = 'local';
+  /** 撤销期后的二次上传定时器 */
+  static _undoPushTimer = null;
 
   // ===== 初始化 =====
   static init() {
@@ -65,15 +67,20 @@ class AnimeDB {
     localStorage.removeItem(this.GITHUB_CONFIG_KEY);
   }
 
-  /** 从 GitHub 拉取数据（合并到本地） */
-  static async pullFromGitHub() {
+  /** 从 GitHub 拉取数据（支持无 token 读取公开仓库） */
+  static async pullFromGitHub(repoOverride) {
     const cfg = this.getGitHubConfig();
-    if (!cfg || !cfg.token || !cfg.repo) throw new Error('未配置 GitHub');
+    const repo = repoOverride || (cfg ? cfg.repo : null);
+    if (!repo) throw new Error('未配置仓库');
 
-    const [owner, repo] = cfg.repo.split('/');
+    const [owner, name] = repo.split('/');
+    // 公开仓库可无 token 读取，有 token 则带上提升频率限制
+    const headers = {};
+    if (cfg && cfg.token) headers['Authorization'] = `Bearer ${cfg.token}`;
+
     const res = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
-      { headers: { Authorization: `Bearer ${cfg.token}` } }
+      `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
+      { headers }
     );
     if (!res.ok) {
       if (res.status === 404) throw new Error('仓库中还没有 data.json，请先上传');
@@ -161,6 +168,48 @@ class AnimeDB {
     this._syncListeners.forEach(fn => { try { fn(this._syncStatus); } catch {} });
   }
 
+  // ===== 自动上传（每次修改后触发）=====
+
+  /**
+   * 立即上传到 GitHub（每次操作都触发，不做防抖）
+   * 必须先通过 GitHub 弹窗配置 token（仅需一次，保存到 localStorage）
+   */
+  static autoPush() {
+    const cfg = this.getGitHubConfig();
+    if (!cfg || !cfg.token || !cfg.repo) return;
+
+    this.pushToGitHub()
+      .then(() => {
+        if (typeof updateSyncUI === 'function') updateSyncUI('connected', '云端');
+      })
+      .catch(() => {
+        if (typeof updateSyncUI === 'function') updateSyncUI('error');
+      });
+  }
+
+  /**
+   * 安排 5 分钟后的二次上传（删除撤销期结束后的确认上传）
+   */
+  static scheduleUndoPush() {
+    this.cancelUndoPush();
+    this._undoPushTimer = setTimeout(async () => {
+      this._undoPushTimer = null;
+      try {
+        await this.pushToGitHub();
+        if (typeof updateSyncUI === 'function') updateSyncUI('connected', '云端');
+      } catch (e) {
+        if (typeof updateSyncUI === 'function') updateSyncUI('error');
+      }
+    }, 5 * 60 * 1000);
+  }
+
+  static cancelUndoPush() {
+    if (this._undoPushTimer) {
+      clearTimeout(this._undoPushTimer);
+      this._undoPushTimer = null;
+    }
+  }
+
   // ===== 生成短 ID =====
   static _genId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -202,6 +251,7 @@ class AnimeDB {
     };
     this._cache.unshift(entry);
     this._saveLocal();
+    this.autoPush();
     return entry;
   }
 
@@ -219,6 +269,7 @@ class AnimeDB {
       }
     }
     this._saveLocal();
+    this.autoPush();
     return this._cache[idx];
   }
 
@@ -227,6 +278,8 @@ class AnimeDB {
     if (idx === -1) return false;
     this._cache.splice(idx, 1);
     this._saveLocal();
+    this.autoPush();           // 立即上传（云端删除）
+    this.scheduleUndoPush();   // 5 分钟后二次上传（确认删除）
     return true;
   }
 
@@ -235,6 +288,8 @@ class AnimeDB {
     if (this._cache.some(e => e.id === entry.id)) return entry;
     this._cache.unshift(entry);
     this._saveLocal();
+    this.cancelUndoPush();  // 取消 5 分钟后的二次上传
+    this.autoPush();         // 立即上传恢复后的数据
     return entry;
   }
 
