@@ -187,6 +187,7 @@ class AnimeDB {
   static async _pushToGithub(silent) {
     const cfg = this.getGitHubConfig();
     if (!cfg || !cfg.token || !cfg.repo) {
+      // 没有 token 时一定要提示——否则用户不知道数据没保存
       if (typeof showToast === 'function') {
         showToast('⚠️ 未配置 Token，点右上角 GitHub 图标配置', 'error');
       }
@@ -199,23 +200,21 @@ class AnimeDB {
       JSON.stringify({ version: 1, updatedAt: new Date().toISOString(), entries: this._cache }, null, 2)
     );
 
-    // 每次推送前重新获取最新 sha，不依赖缓存
-    async function fetchLatestSha() {
+    // 获取最新 sha
+    let sha = cfg._sha;
+    if (!sha) {
       try {
         const r = await fetch(
           `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
           { headers: { Authorization: `Bearer ${cfg.token}` } }
         );
-        if (r.ok) { const d = await r.json(); return d.sha; }
+        if (r.ok) { const d = await r.json(); sha = d.sha; cfg._sha = sha; this.saveGitHubConfig(cfg); }
       } catch {}
-      return null;
     }
 
     let lastErr;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        // 每次尝试都获取最新 sha
-        const sha = await fetchLatestSha();
         const body = { message: '📝 AniList 数据同步', content };
         if (sha) body.sha = sha;
 
@@ -241,8 +240,15 @@ class AnimeDB {
           return;
         }
 
-        // 409 → sha 过期了，下次循环重新获取
+        // 409 → 重新获取 sha 再试
         if (res.status === 409) {
+          try {
+            const r = await fetch(
+              `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
+              { headers: { Authorization: `Bearer ${cfg.token}` } }
+            );
+            if (r.ok) { const d = await r.json(); sha = d.sha; cfg._sha = sha; this.saveGitHubConfig(cfg); }
+          } catch {}
           await new Promise(r => setTimeout(r, 1500));
           continue;
         }
