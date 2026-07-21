@@ -22,19 +22,17 @@ class AnimeDB {
   static _syncStatus = 'local';
   static _undoPushTimer = null;
 
-  // ===== 初始化：从 GitHub 拉取最新数据 =====
+  // ===== 初始化：从 GitHub API 拉取最新数据（无缓存，实时）=====
   static async init(repoOverride) {
     const repo = repoOverride || this._repo;
     if (!repo) { this._loaded = true; return this._cache; }
     const [owner, name] = repo.split('/');
 
-    // 优先用 API（实时、无缓存），其次 CDN（无需 token）
+    // 公开仓库的 API 读取不需要 token（60次/小时，足够用）
     const cfg = this.getGitHubConfig();
     const headers = {};
     if (cfg && cfg.token) headers['Authorization'] = `Bearer ${cfg.token}`;
 
-    // 方式1：GitHub API（有 token 时最可靠，数据实时）
-    let success = false;
     try {
       const res = await fetch(
         `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
@@ -42,37 +40,21 @@ class AnimeDB {
       );
       if (res.ok) {
         const d = await res.json();
-        const content = atob(d.content);
-        const bytes = new Uint8Array(content.length);
-        for (let i = 0; i < content.length; i++) bytes[i] = content.charCodeAt(i);
-        const text = new TextDecoder().decode(bytes);
-        const remote = JSON.parse(text);
+        // 解码 base64 内容
+        const decoded = (() => {
+          const raw = atob(d.content);
+          const bytes = new Uint8Array(raw.length);
+          for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+          return new TextDecoder().decode(bytes);
+        })();
+        const remote = JSON.parse(decoded);
         const entries = Array.isArray(remote) ? remote : (remote.entries || []);
         this._cache = entries;
         this._repo = repo;
         if (cfg && cfg.token) { cfg._sha = d.sha; this.saveGitHubConfig(cfg); }
-        success = true;
         this._setStatus('connected', '云端');
       }
-    } catch {}
-
-    // 方式2：CDN 回退（无 token 或 API 不通时），加时间戳破缓存
-    if (!success) {
-      try {
-        const ts = Date.now();
-        const res = await fetch(
-          `https://raw.githubusercontent.com/${owner}/${name}/main/data.json?_=${ts}`
-        );
-        if (res.ok) {
-          const remote = await res.json();
-          const entries = Array.isArray(remote) ? remote : (remote.entries || []);
-          this._cache = entries;
-          this._repo = repo;
-          this._setStatus('connected', '云端');
-          success = true;
-        }
-      } catch {}
-    }
+    } catch { /* 首次使用 / 网络不通 → 空列表 */ }
 
     this._loaded = true;
     return this._cache;
