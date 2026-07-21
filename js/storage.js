@@ -230,21 +230,23 @@ class AnimeDB {
       JSON.stringify({ version: 1, updatedAt: new Date().toISOString(), entries: this._cache }, null, 2)
     );
 
-    // 获取最新 sha
-    let sha = cfg._sha;
-    if (!sha) {
+    // 每次推送前重新获取最新 sha（不依赖可能过期的缓存）
+    async function fetchLatestSha() {
       try {
         const r = await fetch(
           `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
           { headers: { Authorization: `Bearer ${cfg.token}` } }
         );
-        if (r.ok) { const d = await r.json(); sha = d.sha; cfg._sha = sha; this.saveGitHubConfig(cfg); }
+        if (r.ok) { const d = await r.json(); return d.sha; }
       } catch {}
+      return null;
     }
 
     let lastErr;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
+        // 每次尝试都获取最新 sha，避免 409
+        const sha = await fetchLatestSha();
         const body = { message: '📝 AniList 数据同步', content };
         if (sha) body.sha = sha;
 
@@ -270,15 +272,8 @@ class AnimeDB {
           return;
         }
 
-        // 409 → 重新获取 sha 再试
+        // 409 → sha 已过期，下次循环重新获取
         if (res.status === 409) {
-          try {
-            const r = await fetch(
-              `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
-              { headers: { Authorization: `Bearer ${cfg.token}` } }
-            );
-            if (r.ok) { const d = await r.json(); sha = d.sha; cfg._sha = sha; this.saveGitHubConfig(cfg); }
-          } catch {}
           await new Promise(r => setTimeout(r, 1500));
           continue;
         }
