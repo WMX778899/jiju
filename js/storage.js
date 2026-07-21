@@ -22,17 +22,19 @@ class AnimeDB {
   static _syncStatus = 'local';
   static _undoPushTimer = null;
 
-  // ===== 初始化：从 GitHub API 拉取最新数据（无缓存，实时）=====
+  // ===== 初始化：从 GitHub 拉取最新数据 =====
   static async init(repoOverride) {
     const repo = repoOverride || this._repo;
     if (!repo) { this._loaded = true; return this._cache; }
     const [owner, name] = repo.split('/');
 
-    // 公开仓库的 API 读取不需要 token（60次/小时，足够用）
     const cfg = this.getGitHubConfig();
     const headers = {};
     if (cfg && cfg.token) headers['Authorization'] = `Bearer ${cfg.token}`;
 
+    // 先尝试 GitHub API（实时）
+    // 如果失败则 fallback 到 raw CDN（可能有缓存延迟）
+    let data = null;
     try {
       const res = await fetch(
         `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
@@ -40,21 +42,36 @@ class AnimeDB {
       );
       if (res.ok) {
         const d = await res.json();
-        // 解码 base64 内容
         const decoded = (() => {
           const raw = atob(d.content);
           const bytes = new Uint8Array(raw.length);
           for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
           return new TextDecoder().decode(bytes);
         })();
-        const remote = JSON.parse(decoded);
-        const entries = Array.isArray(remote) ? remote : (remote.entries || []);
-        this._cache = entries;
-        this._repo = repo;
+        data = JSON.parse(decoded);
         if (cfg && cfg.token) { cfg._sha = d.sha; this.saveGitHubConfig(cfg); }
-        this._setStatus('connected', '云端');
       }
-    } catch { /* 首次使用 / 网络不通 → 空列表 */ }
+    } catch { /* API 不通，走 CDN 备选 */ }
+
+    // API 失败时尝试 raw CDN
+    if (!data) {
+      try {
+        const res = await fetch(
+          `https://raw.githubusercontent.com/${owner}/${name}/main/data.json`,
+          { cache: 'no-cache' }
+        );
+        if (res.ok) data = await res.json();
+      } catch {}
+    }
+
+    if (data) {
+      const entries = Array.isArray(data) ? data : (data.entries || []);
+      this._cache = entries;
+      this._repo = repo;
+      this._setStatus(data ? 'connected' : 'local', data ? '云端' : '本地');
+    } else {
+      this._setStatus('local', '本地');
+    }
 
     this._loaded = true;
     return this._cache;
