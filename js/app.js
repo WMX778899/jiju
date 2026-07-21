@@ -7,7 +7,7 @@
 // 工具函数
 // ============================================================
 
-const TYPE_ICONS = { anime: 'dragon', drama: 'clapperboard', movie: 'film' };
+const TYPE_ICONS = { anime: 'tv', drama: 'clapperboard', movie: 'film' };
 const TYPE_LABELS = { anime: '动漫', drama: '剧集', movie: '电影' };
 const STATUS_LABELS = {
   watching: '<i class="fa-solid fa-play"></i> 在看',
