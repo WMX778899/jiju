@@ -12,6 +12,60 @@
 </head>
 <body>
 
+  <!-- ===== 密码门禁 ===== -->
+  <div class="gate-overlay" id="gateOverlay">
+    <div class="gate-container">
+      <div class="gate-card">
+        <!-- 顶部光晕 -->
+        <div class="gate-card-glow"></div>
+
+        <!-- 锁图标 -->
+        <div class="gate-icon-wrap">
+          <div class="gate-icon" id="gateIcon">
+            <i class="fa-solid fa-lock"></i>
+          </div>
+          <div class="gate-icon-ring"></div>
+        </div>
+
+        <!-- 标题 -->
+        <h1 class="gate-title">AniList</h1>
+        <p class="gate-subtitle">追番备忘 · 密钥入口</p>
+
+        <!-- 输入区域 -->
+        <div class="gate-input-group">
+          <input type="password" id="gatePassword" class="gate-input" placeholder="✦ 输入密码" autocomplete="off" spellcheck="false" />
+          <div class="gate-input-line"></div>
+        </div>
+
+        <!-- 错误提示 -->
+        <p class="gate-error" id="gateError">✧ 密码错误，再试一次</p>
+
+        <!-- 进入按钮 -->
+        <button class="gate-enter-btn" id="gateEnterBtn">
+          <span>进 入</span>
+          <i class="fa-solid fa-arrow-right-to-bracket"></i>
+        </button>
+
+        <!-- 底部装饰线 -->
+        <div class="gate-deco">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <!-- 浮动星星装饰 -->
+      <div class="gate-stars">
+        <span style="--i:0">✦</span>
+        <span style="--i:1">✧</span>
+        <span style="--i:2">☆</span>
+        <span style="--i:3">♢</span>
+        <span style="--i:4">✦</span>
+        <span style="--i:5">☆</span>
+        <span style="--i:6">✧</span>
+      </div>
+    </div>
+  </div>
+  <!-- ===== 门禁结束 ===== -->
+
   <!-- ===== 背景粒子画布 ===== -->
   <canvas id="particleCanvas"></canvas>
 
@@ -263,5 +317,86 @@
   </script>
   <script src="js/storage.js"></script>
   <script src="js/app.js"></script>
+
+  <!-- ===== 密码门禁逻辑 ===== -->
+  <script>
+    (function() {
+      'use strict';
+
+      // ═══════════════════════════════════════════════
+      //   ← 在这里修改你的密码！
+      const GATE_PASSWORD = 'anime2024';
+      // ═══════════════════════════════════════════════
+
+      var gate = document.getElementById('gateOverlay');
+      var input = document.getElementById('gatePassword');
+      var btn = document.getElementById('gateEnterBtn');
+      var errorEl = document.getElementById('gateError');
+      var icon = document.getElementById('gateIcon');
+
+      // 本会话已通过 → 直接隐藏门禁
+      if (sessionStorage.getItem('anilist_gate_passed') === '1') {
+        gate.style.display = 'none';
+        return;
+      }
+
+      /** 尝试进入 */
+      function tryEnter() {
+        if (input.value === GATE_PASSWORD) {
+          // 成功：存储会话标记
+          sessionStorage.setItem('anilist_gate_passed', '1');
+
+          // 锁图标解锁动画
+          icon.innerHTML = '<i class="fa-solid fa-lock-open"></i>';
+          icon.style.color = '#22c55e';
+          icon.style.boxShadow = '0 0 40px rgba(34,197,94,0.4)';
+
+          // 门禁淡出
+          gate.classList.add('gate-passed');
+          setTimeout(function() {
+            gate.style.display = 'none';
+            // 聚焦到搜索框
+            var search = document.getElementById('globalSearch');
+            if (search) setTimeout(function() { search.focus(); }, 300);
+          }, 800);
+        } else {
+          // 失败：抖动 + 错误提示
+          input.classList.add('shake');
+          errorEl.classList.add('show');
+          input.value = '';
+          input.blur();
+          // 锁图标错误闪烁
+          icon.style.color = '#ef4444';
+          icon.style.boxShadow = '0 0 30px rgba(239,68,68,0.3)';
+          setTimeout(function() {
+            input.classList.remove('shake');
+            icon.style.color = '';
+            icon.style.boxShadow = '';
+            input.focus();
+          }, 500);
+        }
+      }
+
+      // 按钮点击
+      btn.addEventListener('click', tryEnter);
+
+      // 回车键
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); tryEnter(); }
+      });
+
+      // 输入时隐藏错误
+      input.addEventListener('input', function() {
+        errorEl.classList.remove('show');
+        icon.style.color = '';
+        icon.style.boxShadow = '';
+      });
+
+      // 自动聚焦（延迟等动画完成）
+      setTimeout(function() { input.focus(); }, 900);
+
+      // 点击门禁外部不关闭（必须输入密码）
+    })();
+  </script>
 </body>
 </html>
