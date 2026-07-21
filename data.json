@@ -1,7 +1,16 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-21T14:14:26.388Z",
+  "updatedAt": "2026-07-21T14:14:40.428Z",
   "entries": [
+    {
+      "id": "mruqj48b6i5fwa",
+      "title": "aaa",
+      "type": "anime",
+      "status": "watching",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-21T14:14:40.427Z"
+    },
     {
       "id": "000037rvthzf26",
       "title": "零之使魔",
