@@ -174,8 +174,10 @@ class AnimeDB {
     this.pushToGitHub()
       .then(() => {
         if (typeof updateSyncUI === 'function') updateSyncUI('connected', '云端');
+        if (typeof showToast === 'function') showToast('☁️ 已同步到云端');
       })
-      .catch(() => {
+      .catch((e) => {
+        if (typeof showToast === 'function') showToast('❌ 同步失败: ' + (e.message || '网络错误，数据已保存到本地'), 'error');
         if (typeof updateSyncUI === 'function') updateSyncUI('error');
       });
   }
