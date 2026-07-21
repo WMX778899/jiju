@@ -496,6 +496,9 @@ class AniListApp {
     this.emptyState = this.$('emptyState');
     this.emptyText = this.$('emptyText');
 
+    // 搜索行
+    this.searchRow = this.$('searchRow');
+
     // 筛选
     this.typeFilter = this.$('typeFilter');
     this.statusFilter = this.$('statusFilter');
@@ -538,7 +541,7 @@ class AniListApp {
 
   bindEvents() {
     // 独立搜索——每个标签自己的搜索框
-    this.statsBar.addEventListener('input', (e) => {
+    this.searchRow.addEventListener('input', (e) => {
       const input = e.target.closest('.stat-search');
       if (!input) return;
       const status = input.dataset.s;
@@ -852,7 +855,7 @@ class AniListApp {
     this.renderStats();
 
     // 同步当前标签的搜索框值
-    const activeSearch = this.statsBar.querySelector(`.stat-search[data-s="${this.currentStatus}"]`);
+    const activeSearch = this.searchRow.querySelector(`.stat-search[data-s="${this.currentStatus}"]`);
     if (activeSearch && activeSearch.value !== query) activeSearch.value = query;
 
     // 空状态

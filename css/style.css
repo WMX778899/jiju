@@ -421,8 +421,8 @@ body {
 
 .stat-item {
   flex: 1;
-  min-width: 72px;
-  padding: 8px 6px 6px;
+  min-width: 64px;
+  padding: 10px 6px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 14px;
@@ -430,75 +430,56 @@ body {
   cursor: pointer;
   transition: var(--transition);
   user-select: none;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
-.stat-top {
+/* ===== 搜索行 ===== */
+.search-row {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
-.stat-search-wrap {
+.search-row .stat-search-wrap {
+  flex: 1;
+  min-width: 0;
   position: relative;
-  width: 100%;
 }
 
-.stat-search-wrap i {
+.search-row .stat-search-wrap i {
   position: absolute;
-  left: 6px;
+  left: 8px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-muted);
   pointer-events: none;
   transition: var(--transition);
 }
 
-.stat-search {
+.search-row .stat-search {
   width: 100%;
-  padding: 4px 6px 4px 18px;
-  background: var(--bg-primary);
-  border: 1px solid transparent;
-  border-radius: 8px;
+  padding: 6px 8px 6px 22px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: 12px;
   font-family: var(--font-main);
   outline: none;
   transition: var(--transition);
   box-sizing: border-box;
   cursor: text;
-  user-select: text;
-  opacity: 0.55;
 }
 
-.stat-search::placeholder { color: var(--text-muted); font-size: 10px; }
-.stat-search:hover { opacity: 0.85; }
-.stat-search:focus {
-  opacity: 1;
+.search-row .stat-search::placeholder { color: var(--text-muted); font-size: 11px; }
+.search-row .stat-search:hover { border-color: rgba(168, 85, 247, 0.3); }
+.search-row .stat-search:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 10px var(--accent-glow);
-  background: rgba(168, 85, 247, 0.04);
+  box-shadow: 0 0 14px var(--accent-glow);
+  background: rgba(168, 85, 247, 0.05);
 }
-
-.stat-search:focus ~ i { color: var(--accent); }
-
-.stat-item.active .stat-search {
-  border-color: var(--border-color);
-  opacity: 0.7;
-}
-.stat-item.active .stat-search:focus {
-  border-color: var(--accent);
-  opacity: 1;
-}
-
-.stat-search:not(:placeholder-shown) {
-  opacity: 1;
-  border-color: var(--border-color);
-}
+.search-row .stat-search:focus ~ i { color: var(--accent); }
+.search-row .stat-search:not(:placeholder-shown) { border-color: rgba(168, 85, 247, 0.25); }
 
 .stat-item:hover {
   border-color: var(--accent);
