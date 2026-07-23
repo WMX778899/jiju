@@ -853,52 +853,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
-    // ===== Token 密码门禁（一键填入硬编码 Token）=====
-    {
-      var revealBtn = document.getElementById('tokenRevealBtn');
-      var revealGate = document.getElementById('tokenRevealGate');
-      var revealPwd = document.getElementById('tokenRevealPwd');
-      var revealUnlock = document.getElementById('tokenRevealUnlock');
-      var revealErr = document.getElementById('tokenRevealErr');
-
-      if (revealBtn && revealGate) {
-        var TOKEN_PWD = '9421';
-
-        revealBtn.addEventListener('click', function() {
-          revealBtn.style.display = 'none';
-          revealGate.style.display = '';
-          revealPwd.value = '';
-          revealErr.classList.remove('show');
-          setTimeout(function() { revealPwd.focus(); }, 100);
-        });
-
-        function tryReveal() {
-          if (revealPwd.value === TOKEN_PWD) {
-            var token = typeof HARDCODED_GITHUB_TOKEN !== 'undefined' ? HARDCODED_GITHUB_TOKEN : '';
-            var input = document.getElementById('githubToken');
-            if (input && token) {
-              input.value = token;
-              input.type = 'text';
-            }
-            revealGate.style.display = 'none';
-            showGitHubStatus('✅ Token 已填入，可直接使用', false);
-          } else {
-            revealErr.classList.add('show');
-            revealPwd.value = '';
-            revealPwd.focus();
-          }
-        }
-
-        revealPwd.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter') { e.preventDefault(); tryReveal(); }
-        });
-        revealPwd.addEventListener('input', function() {
-          revealErr.classList.remove('show');
-        });
-        revealUnlock.addEventListener('click', tryReveal);
-      }
-    }
-
     // ===== 新设备引导：未配 token 时自动弹出配置窗口 =====
     (function autoPromptGitHub() {
       const cfg = AnimeDB.getGitHubConfig();
