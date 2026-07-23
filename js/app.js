@@ -572,10 +572,6 @@ class AniListApp {
 
   // ===== 渲染 =====
   render() {
-    // 保持容器高度，防止切换时抖动
-    const listContainer = this.listContainer;
-    const prevHeight = listContainer.offsetHeight;
-    if (prevHeight > 0) listContainer.style.minHeight = prevHeight + 'px';
 
     // 获取并筛选数据（搜索词应用于当前模块）
     const query = this.searchQuery;
@@ -601,8 +597,6 @@ class AniListApp {
       } else {
         this.emptyText.innerHTML = '<i class="fa-solid fa-pen" style="opacity:0.4;margin-right:4px"></i> 还没有记录，点 + 添加吧';
       }
-      // 等动画完成后释放固定高度
-      setTimeout(() => { listContainer.style.minHeight = ''; }, 500);
       return;
     }
 
@@ -611,9 +605,6 @@ class AniListApp {
     // 渲染卡片
     this.listContainer.innerHTML = entries.map((entry, i) => this.createCard(entry, i)).join('');
 
-    // 等所有卡片入场动画结束再释放（最后一张 delay + 动画时长）
-    const animDelay = (entries.length - 1) * 0.04 + 0.45;
-    setTimeout(() => { listContainer.style.minHeight = ''; }, animDelay * 1000);
 
     // 绑定卡片事件（委托）
     this.listContainer.querySelectorAll('.card').forEach((card) => {
