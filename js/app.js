@@ -273,9 +273,6 @@ class AniListApp {
     this.deleteClose = this.$('deleteClose');
 
     // 导入导出
-    this.exportBtn = this.$('exportBtn');
-    this.importBtn = this.$('importBtn');
-    this.importFileInput = this.$('importFileInput');
     this.resetBtn = this.$('resetBtn');
   }
 
@@ -358,11 +355,8 @@ class AniListApp {
     });
 
     // 导出
-    this.exportBtn.addEventListener('click', () => this.handleExport());
 
     // 导入
-    this.importBtn.addEventListener('click', () => this.importFileInput.click());
-    this.importFileInput.addEventListener('change', (e) => this.handleImport(e));
 
     // 重置
     this.resetBtn.addEventListener('click', () => this.handleReset());
@@ -558,7 +552,6 @@ class AniListApp {
     };
     reader.readAsText(file);
     // 重置 input 以支持重复导入同文件
-    this.importFileInput.value = '';
   }
 
   // ===== 重置 =====
