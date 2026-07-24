@@ -273,7 +273,6 @@ class AniListApp {
     this.deleteClose = this.$('deleteClose');
 
     // 导入导出
-    this.resetBtn = this.$('resetBtn');
   }
 
   bindEvents() {
@@ -358,8 +357,6 @@ class AniListApp {
 
     // 导入
 
-    // 重置
-    this.resetBtn.addEventListener('click', () => this.handleReset());
 
     // 点击模态框外部关闭
     this.formModal.addEventListener('click', (e) => {
@@ -554,14 +551,6 @@ class AniListApp {
     // 重置 input 以支持重复导入同文件
   }
 
-  // ===== 重置 =====
-  handleReset() {
-    if (confirm('确定要清除所有数据吗？此操作不可撤销！')) {
-      AnimeDB.reset();
-      showToast('已重置数据');
-      this.render();
-    }
-  }
 
   // ===== 渲染 =====
   render() {

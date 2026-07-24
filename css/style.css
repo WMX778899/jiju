@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    AniList 路 鍔ㄦ极椋庤拷鐣蹇?- 鍏ㄦ牱寮?
    ============================================================ */
 
@@ -143,8 +143,24 @@ body {
   color: var(--success);
 }
 
+.sync-status.sync-syncing {
+  border-color: rgba(59, 130, 246, 0.35);
+  color: var(--success);
+}
+
 .sync-status.sync-syncing i {
-  animation: spin 1.5s linear infinite;
+  animation: none;
+}
+
+.sync-status.sync-syncing::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 0 currentColor;
+  animation: syncPulse 1.4s ease-in-out infinite;
+  flex: 0 0 auto;
 }
 
 .sync-status.sync-error {
@@ -157,9 +173,10 @@ body {
   color: var(--text-muted);
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes syncPulse {
+  0% { transform: scale(0.85); opacity: 0.45; box-shadow: 0 0 0 0 currentColor; }
+  50% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 4px rgba(255, 255, 255, 0); }
+  100% { transform: scale(0.85); opacity: 0.45; box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
 }
 
 @keyframes fadeInDown {
