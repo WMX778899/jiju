@@ -397,6 +397,7 @@ class AniListApp {
   // ===== 打开表单 =====
   openForm(entry = null) {
     this.formModal.classList.add('open');
+    this.formModal.classList.toggle('is-editing', Boolean(entry));
     document.body.style.overflow = 'hidden';
 
     if (entry) {
@@ -428,6 +429,7 @@ class AniListApp {
   // ===== 关闭模态框 =====
   closeModal(el) {
     el.classList.remove('open');
+    if (el === this.formModal) el.classList.remove('is-editing');
     document.body.style.overflow = '';
   }
 

@@ -15,6 +15,8 @@ class ParticleBackground {
     this.stars = [];
     this.mouse = { x: -999, y: -999 };
     this.time = 0;
+    this.isScrolling = false;
+    this.scrollIdleTimer = null;
     this.resize();
     this.initParticles();
     this.initStars();
@@ -69,9 +71,23 @@ class ParticleBackground {
       this.mouse.x = -999;
       this.mouse.y = -999;
     });
+
+    // Keep decorative canvas work out of the touch-scroll critical path.
+    window.addEventListener('scroll', () => {
+      this.isScrolling = true;
+      clearTimeout(this.scrollIdleTimer);
+      this.scrollIdleTimer = setTimeout(() => {
+        this.isScrolling = false;
+      }, 120);
+    }, { passive: true });
   }
 
   animate() {
+    if (this.isScrolling) {
+      requestAnimationFrame(() => this.animate());
+      return;
+    }
+
     const { ctx, canvas, particles, stars, mouse } = this;
     this.time += 0.005;
     ctx.clearRect(0, 0, canvas.width, canvas.height);

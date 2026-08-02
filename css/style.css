@@ -136,6 +136,15 @@ body {
   animation: fadeInDown 0.4s ease;
 }
 
+.header-actions .sync-status {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  transform: none;
+  animation: none;
+  flex: 0 0 auto;
+}
+
 .sync-status i { font-size: 12px; }
 
 .sync-status.sync-connected {
@@ -870,15 +879,48 @@ body {
 }
 
 .modal-content {
+  position: relative;
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
+  overflow-x: clip;
   overflow-y: auto;
   background: var(--bg-modal);
   border-radius: var(--modal-radius) var(--modal-radius) 0 0;
   padding: 24px 20px 30px;
   animation: slideUp 0.3s ease;
   box-shadow: var(--shadow-modal);
+}
+
+.modal-overlay.is-editing .modal-content {
+  border: 1px solid rgba(196, 181, 253, 0.34);
+  box-shadow:
+    0 0 0 1px rgba(167, 139, 250, 0.08),
+    0 18px 64px rgba(76, 29, 149, 0.28),
+    var(--shadow-modal);
+}
+
+.modal-overlay.is-editing .modal-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -42%;
+  width: 42%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(221, 214, 254, 0.95), rgba(167, 139, 250, 0.78), transparent);
+  filter: blur(0.4px);
+  pointer-events: none;
+  animation: editPurpleFlow 3.8s linear infinite;
+}
+
+.modal-overlay.is-editing .modal-title {
+  color: var(--accent-hover);
+  text-shadow: 0 0 16px rgba(196, 181, 253, 0.28);
+}
+
+@keyframes editPurpleFlow {
+  from { transform: translateX(0); }
+  to { transform: translateX(340%); }
 }
 
 .modal-sm { max-width: 400px; }
@@ -1331,6 +1373,16 @@ body {
 
 /* 鈹€鈹€ 鎵嬫満閫氱敤浼樺寲 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
 @media (max-width: 599px) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
   .header-content { flex-wrap: wrap; overflow: hidden; }
   .header-actions { gap: 4px; flex: 1; justify-content: flex-end; }
 

@@ -34,6 +34,10 @@
           <span class="header-subtitle">追番清单</span>
         </div>
         <div class="header-actions">
+          <div class="sync-status" id="syncStatus" title="数据同步状态">
+            <i class="fa-solid fa-cloud"></i>
+            <span id="syncText">本地</span>
+          </div>
           <button class="header-btn" id="githubBtn" title="GitHub 云同步">
             <i class="fa-brands fa-github"></i>
           </button>
@@ -204,12 +208,6 @@
 
   <!-- ===== Toast 消息 ===== -->
   <div class="toast-container" id="toastContainer"></div>
-
-  <!-- ===== 同步状态指示器（右上角） ===== -->
-  <div class="sync-status" id="syncStatus" title="数据同步状态">
-    <i class="fa-solid fa-cloud"></i>
-    <span id="syncText">本地</span>
-  </div>
 
   <!-- ===== GitHub 同步配置弹窗 ===== -->
   <div class="modal-overlay" id="githubModal">
