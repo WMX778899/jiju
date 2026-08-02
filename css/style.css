@@ -923,6 +923,11 @@ body {
   to { transform: translateX(340%); }
 }
 
+@keyframes editPurpleFlowMobile {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
 .modal-sm { max-width: 400px; }
 
 @keyframes slideUp {
@@ -1381,6 +1386,19 @@ body {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
+  }
+
+  .modal-overlay.is-editing .modal-content::before {
+    left: 0;
+    width: 100%;
+    height: 2px;
+    border-radius: inherit;
+    background: linear-gradient(90deg, transparent 0%, rgba(221, 214, 254, 0.92) 34%, rgba(167, 139, 250, 0.8) 50%, transparent 74%);
+    background-size: 220% 100%;
+    background-position: 100% 0;
+    animation-name: editPurpleFlowMobile;
+    animation-duration: 2.8s;
+    transform: none;
   }
 
   .header-content { flex-wrap: wrap; overflow: hidden; }
@@ -2391,5 +2409,49 @@ body {
 
 .app-container::before {
   background: radial-gradient(ellipse, rgba(196, 181, 253, 0.09), transparent 68%);
+}
+
+/* Mobile edit sheet: keep the viewport stable while the focused field opens. */
+@media (max-width: 599px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  #formModal {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  #formModal .modal-content {
+    width: 100%;
+    max-width: none;
+    max-height: 90vh;
+    max-height: min(94dvh, 760px);
+    padding: 18px 16px max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px));
+    border-radius: 18px 18px 0 0;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-padding-bottom: 24px;
+  }
+
+  #formModal .form-input,
+  #formModal .form-select,
+  #formModal .form-textarea {
+    font-size: 16px;
+  }
+
+  #formModal .form-input,
+  #formModal .form-select {
+    min-height: 48px;
+  }
+
+  #formModal .form-textarea {
+    min-height: 88px;
+  }
+
+  #formModal .form-actions .btn {
+    min-height: 48px;
+  }
 }
 
