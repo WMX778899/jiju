@@ -340,6 +340,14 @@ class AniListApp {
       this.previewRating(value);
     });
 
+    this.starRatingEl.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse') return;
+      const star = e.target.closest('.star');
+      if (!star) return;
+      const value = parseInt(star.dataset.value, 10);
+      this.previewRating(value);
+    });
+
     this.starRatingEl.addEventListener('mouseleave', () => {
       this.previewRating(null);
     });
@@ -403,7 +411,7 @@ class AniListApp {
     if (entry) {
       // 编辑模式
       this.editingId = entry.id;
-      this.modalTitle.textContent = '编辑条目';
+      this.modalTitle.textContent = '编辑番剧';
       this.formSubmit.innerHTML = '<i class="fas fa-check"></i> 保存修改';
       this.formId.value = entry.id;
       this.formTitle.value = entry.title;
@@ -414,7 +422,7 @@ class AniListApp {
     } else {
       // 添加模式
       this.editingId = null;
-      this.modalTitle.textContent = '添加条目';
+      this.modalTitle.textContent = '添加番剧';
       this.formSubmit.innerHTML = '<i class="fas fa-check"></i> 保存';
       this.animeForm.reset();
       this.formId.value = '';

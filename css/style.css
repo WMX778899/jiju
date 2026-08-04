@@ -903,14 +903,16 @@ body {
 .modal-overlay.is-editing .modal-content::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: -42%;
-  width: 42%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(221, 214, 254, 0.95), rgba(167, 139, 250, 0.78), transparent);
-  filter: blur(0.4px);
+  inset: 1px;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, transparent, rgba(221, 214, 254, 0.96), transparent) 0 0 / 220% 2px no-repeat,
+    linear-gradient(0deg, transparent, rgba(167, 139, 250, 0.88), transparent) 100% 0 / 2px 220% no-repeat,
+    linear-gradient(90deg, transparent, rgba(196, 181, 253, 0.86), transparent) 100% 100% / 220% 2px no-repeat,
+    linear-gradient(0deg, transparent, rgba(167, 139, 250, 0.78), transparent) 0 100% / 2px 220% no-repeat;
+  filter: blur(0.2px);
   pointer-events: none;
-  animation: editPurpleFlow 3.8s linear infinite;
+  animation: editPurpleOrbit 4.6s linear infinite;
 }
 
 .modal-overlay.is-editing .modal-title {
@@ -918,14 +920,13 @@ body {
   text-shadow: 0 0 16px rgba(196, 181, 253, 0.28);
 }
 
-@keyframes editPurpleFlow {
-  from { transform: translateX(0); }
-  to { transform: translateX(340%); }
-}
-
-@keyframes editPurpleFlowMobile {
-  from { background-position: 100% 0; }
-  to { background-position: -100% 0; }
+@keyframes editPurpleOrbit {
+  0%, 100% {
+    background-position: -110% 0, 100% -110%, 110% 100%, 0 110%;
+  }
+  50% {
+    background-position: 110% 0, 100% 110%, -110% 100%, 0 -110%;
+  }
 }
 
 .modal-sm { max-width: 400px; }
@@ -1389,16 +1390,8 @@ body {
   }
 
   .modal-overlay.is-editing .modal-content::before {
-    left: 0;
-    width: 100%;
-    height: 2px;
-    border-radius: inherit;
-    background: linear-gradient(90deg, transparent 0%, rgba(221, 214, 254, 0.92) 34%, rgba(167, 139, 250, 0.8) 50%, transparent 74%);
-    background-size: 220% 100%;
-    background-position: 100% 0;
-    animation-name: editPurpleFlowMobile;
-    animation-duration: 2.8s;
-    transform: none;
+    inset: 1px;
+    animation-duration: 3.4s;
   }
 
   .header-content { flex-wrap: wrap; overflow: hidden; }
@@ -2416,6 +2409,19 @@ body {
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+  }
+
+  .star-rating .star {
+    min-width: 36px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .star-rating .star:active {
+    transform: scale(1.2);
   }
 
   #formModal {
