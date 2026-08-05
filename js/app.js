@@ -272,7 +272,6 @@ class AniListApp {
     this.deleteCancel = this.$('deleteCancel');
     this.deleteClose = this.$('deleteClose');
 
-    // 导入导出
   }
 
   bindEvents() {
@@ -360,11 +359,6 @@ class AniListApp {
     this.deleteModal.addEventListener('click', (e) => {
       if (e.target === this.deleteModal) closeDelete();
     });
-
-    // 导出
-
-    // 导入
-
 
     // 点击模态框外部关闭
     this.formModal.addEventListener('click', (e) => {
@@ -523,44 +517,6 @@ class AniListApp {
     showToast('已恢复 ↩️');
     this.render();
   }
-
-  // ===== 导出 =====
-  handleExport() {
-    const json = AnimeDB.exportData();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `anilist-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('导出成功 📦');
-  }
-
-  // ===== 导入 =====
-  handleImport(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const count = AnimeDB.importData(event.target.result);
-        showToast(`导入成功！共 ${count} 条记录 📥`);
-        this.render();
-      } catch (err) {
-        showToast(err.message || '导入失败', 'error');
-      }
-    };
-    reader.onerror = () => {
-      showToast('文件读取失败', 'error');
-    };
-    reader.readAsText(file);
-    // 重置 input 以支持重复导入同文件
-  }
-
 
   // ===== 渲染 =====
   render() {
@@ -741,7 +697,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateSyncUI('syncing');
   try {
     await AnimeDB.init(defaultRepo);
-  } catch { updateSyncUI('local'); }
+  } catch { updateSyncUI('error', '加载失败'); }
 
   // 启动应用
   new AniListApp();

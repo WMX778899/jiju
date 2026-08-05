@@ -21,11 +21,17 @@ class AnimeDB {
   static _syncListeners = [];
   static _syncStatus = 'local';
   static _undoPushTimer = null;
+  static _pushQueue = Promise.resolve();
+  static _pendingPush = null;
 
   // ===== 初始化：从 GitHub 拉取最新数据 =====
   static async init(repoOverride) {
     const repo = repoOverride || this._repo;
-    if (!repo) { this._loaded = true; return this._cache; }
+    if (!repo) {
+      this._loaded = true;
+      this._setStatus('error', '加载失败');
+      throw new Error('未配置云端仓库');
+    }
     const [owner, name] = repo.split('/');
 
     const cfg = this.getGitHubConfig();
@@ -35,6 +41,7 @@ class AnimeDB {
     // 先尝试 GitHub API（实时）
     // 如果失败则 fallback 到 raw CDN（可能有缓存延迟）
     let data = null;
+    let lastError = null;
     try {
       const res = await fetch(
         `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
@@ -50,8 +57,13 @@ class AnimeDB {
         })();
         data = JSON.parse(decoded);
         if (cfg && cfg.token) { cfg._sha = d.sha; this.saveGitHubConfig(cfg); }
+      } else {
+        lastError = new Error(`GitHub API ${res.status}`);
       }
-    } catch { /* API 不通，走 CDN 备选 */ }
+    } catch (error) {
+      lastError = error;
+      /* API 不通，走 CDN 备选 */
+    }
 
     // API 失败时尝试多个 CDN 备选
     const cdns = [
@@ -63,20 +75,29 @@ class AnimeDB {
       try {
         const res = await fetch(url, { cache: 'no-cache' });
         if (res.ok) data = await res.json();
-      } catch {}
+        else lastError = new Error(`CDN ${res.status}`);
+      } catch (error) {
+        lastError = error;
+      }
     }
 
     if (data) {
-      const entries = Array.isArray(data) ? data : (data.entries || []);
+      const entries = Array.isArray(data) ? data : data.entries;
+      if (!Array.isArray(entries)) {
+        this._loaded = true;
+        this._setStatus('error', '加载失败');
+        throw new Error('云端数据格式不正确');
+      }
       this._cache = entries;
       this._repo = repo;
-      this._setStatus(data ? 'connected' : 'local', data ? '云端' : '本地');
-    } else {
-      this._setStatus('local', '本地');
+      this._setStatus('connected', '云端');
+      this._loaded = true;
+      return this._cache;
     }
 
     this._loaded = true;
-    return this._cache;
+    this._setStatus('error', '加载失败');
+    throw lastError || new Error('无法加载云端数据');
   }
 
   /** 确保已初始化 */
@@ -168,7 +189,7 @@ class AnimeDB {
     const idx = this._cache.findIndex(e => e.id === id);
     if (idx === -1) return false;
     this._cache.splice(idx, 1);
-    this._pushToGithub(false);  // 立即推，显示结果
+    this._enqueuePush(false).catch(() => {});  // 立即推，显示结果
     this.scheduleUndoPush();   // 5 分钟后二次确认
     return true;
   }
@@ -179,51 +200,44 @@ class AnimeDB {
     if (this._cache.some(e => e.id === entry.id)) return entry;
     this._cache.unshift(entry);
     this.cancelUndoPush();
-    this._pushToGithub(false);
+    this._enqueuePush(false).catch(() => {});
     return entry;
   }
-
-  // ===== 导出 / 导入 =====
-  static exportData() {
-    this._ensureLoaded();
-    return JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), entries: this._cache }, null, 2);
-  }
-
-  static importData(jsonStr) {
-    this._ensureLoaded();
-    let parsed;
-    try { parsed = JSON.parse(jsonStr); } catch { throw new Error('JSON 格式错误'); }
-    let entries;
-    if (Array.isArray(parsed)) entries = parsed;
-    else if (parsed && Array.isArray(parsed.entries)) entries = parsed.entries;
-    else throw new Error('数据格式不正确');
-    entries = entries.filter(e => e && e.title && e.title.trim());
-    if (entries.length === 0) throw new Error('没有找到有效的条目数据');
-    entries = entries.map(e => ({
-      id: e.id || this._genId(),
-      title: e.title.trim(),
-      type: ['anime', 'drama', 'movie'].includes(e.type) ? e.type : 'anime',
-      status: ['watching', 'want_to_watch', 'completed'].includes(e.status) ? e.status : 'want_to_watch',
-      rating: Math.min(5, Math.max(0, Number(e.rating) || 0)),
-      notes: (e.notes || '').trim(),
-      createdAt: e.createdAt || new Date().toISOString(),
-    }));
-    this._cache = entries;
-    this._pushToGithub(false);
-    return entries.length;
-  }
-
 
   // ===== 云端推送核心 =====
   /** 手动推送（显示结果） */
   static async push() {
     this._ensureLoaded();
-    await this._pushToGithub(false);
+    await this._enqueuePush(false);
   }
 
   static _pushAfterChange() {
     // 不静默——push 失败要告知用户，否则刷新数据就丢了
-    this._pushToGithub(false).catch(() => {});
+    this._enqueuePush(false).catch(() => {});
+  }
+
+  /**
+   * 串行化云端写入，并合并尚未开始的连续请求。
+   * 网络请求进行期间产生的新修改会进入下一批，确保最终写入最新缓存。
+   */
+  static _enqueuePush(silent) {
+    if (this._pendingPush) {
+      // 任一调用要求显示结果时，合并后的请求也不能静默。
+      if (!silent) this._pendingPush.silent = false;
+      return this._pendingPush.promise;
+    }
+
+    const pending = { silent: Boolean(silent), promise: null };
+    const run = async () => {
+      if (this._pendingPush === pending) this._pendingPush = null;
+      return this._pushToGithub(pending.silent);
+    };
+    const promise = this._pushQueue.then(run, run);
+    pending.promise = promise;
+    this._pendingPush = pending;
+    // 队列自身始终保持可继续执行；错误仍通过本次返回的 promise 交给调用方。
+    this._pushQueue = promise.catch(() => {});
+    return promise;
   }
 
   static async _pushToGithub(silent) {
@@ -238,10 +252,6 @@ class AnimeDB {
     }
 
     const [owner, name] = cfg.repo.split('/');
-    const content = _utf8ToBase64(
-      JSON.stringify({ version: 1, updatedAt: new Date().toISOString(), entries: this._cache }, null, 2)
-    );
-
     // 每次推送前重新获取最新 sha（不依赖可能过期的缓存）
     async function fetchLatestSha() {
       try {
@@ -259,6 +269,10 @@ class AnimeDB {
       try {
         // 每次尝试都获取最新 sha，避免 409
         const sha = await fetchLatestSha();
+        // 重试时重新读取缓存，避免较早请求用旧快照覆盖后续修改。
+        const content = _utf8ToBase64(
+          JSON.stringify({ version: 1, updatedAt: new Date().toISOString(), entries: this._cache }, null, 2)
+        );
         const body = { message: '📝 AniList 数据同步', content };
         if (sha) body.sha = sha;
 
@@ -309,7 +323,7 @@ class AnimeDB {
     this.cancelUndoPush();
     this._undoPushTimer = setTimeout(() => {
       this._undoPushTimer = null;
-      this._pushToGithub(true).catch(() => {});
+      this._enqueuePush(true).catch(() => {});
     }, 5 * 60 * 1000);
   }
 

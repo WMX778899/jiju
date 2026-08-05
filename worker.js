@@ -33,7 +33,7 @@ async function handleRequest(request) {
       })
     }
 
-    // ===== PUT /entries 全量替换（导入/重置） =====
+    // ===== PUT /entries 全量替换 =====
     if (method === 'PUT' && path === '/entries') {
       const body = await request.json()
       await ANILIST_KV.put('entries', JSON.stringify(body))
