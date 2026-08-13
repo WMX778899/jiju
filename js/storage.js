@@ -152,9 +152,11 @@ class AnimeDB {
   // ===== 写入 =====
   static add({ title, type = 'anime', status = 'want_to_watch', rating = 0, notes = '' }) {
     this._ensureLoaded();
+    const normalizedTitle = String(title ?? '');
+    this._assertUniqueTitle(normalizedTitle, type);
     const entry = {
       id: this._genId(),
-      title: title.trim(),
+      title: normalizedTitle,
       type,
       status,
       rating: Math.min(5, Math.max(0, Number(rating) || 0)),
@@ -170,11 +172,15 @@ class AnimeDB {
     this._ensureLoaded();
     const idx = this._cache.findIndex(e => e.id === id);
     if (idx === -1) return null;
+    const entry = this._cache[idx];
+    const nextTitle = 'title' in updates ? String(updates.title ?? '') : entry.title;
+    const nextType = 'type' in updates ? updates.type : entry.type;
+    this._assertUniqueTitle(nextTitle, nextType, id);
     const allowed = ['title', 'type', 'status', 'rating', 'notes'];
     for (const key of allowed) {
       if (key in updates) {
         let val = updates[key];
-        if (key === 'title') val = String(val).trim();
+        if (key === 'title') val = String(val ?? '');
         if (key === 'rating') val = Math.min(5, Math.max(0, Number(val) || 0));
         if (key === 'notes') val = String(val).trim();
         this._cache[idx][key] = val;
@@ -332,6 +338,20 @@ class AnimeDB {
   }
 
   // ===== 工具 =====
+  static _assertUniqueTitle(title, type, excludedId = null) {
+    const comparableTitle = String(title).replace(/\s/g, '');
+    const duplicate = this._cache.some(entry => (
+      entry.id !== excludedId &&
+      entry.type === type &&
+      String(entry.title).replace(/\s/g, '') === comparableTitle
+    ));
+    if (duplicate) {
+      const error = new Error('该模块中已存在完全相同的剧名');
+      error.code = 'DUPLICATE_TITLE';
+      throw error;
+    }
+  }
+
   static _genId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }

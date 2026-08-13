@@ -442,8 +442,8 @@ class AniListApp {
 
   // ===== 表单提交 =====
   handleFormSubmit() {
-    const title = this.formTitle.value.trim();
-    if (!title) {
+    const title = this.formTitle.value;
+    if (!title.trim()) {
       showToast('请输入名称', 'error');
       this.formTitle.focus();
       return;
@@ -457,14 +457,23 @@ class AniListApp {
       notes: this.formNotes.value.trim(),
     };
 
-    if (this.editingId) {
-      AnimeDB.update(this.editingId, data);
-      showToast('已更新 ✨');
-    } else {
-      AnimeDB.add(data);
-      showToast('已添加 🎉');
-      // 添加时放彩纸庆祝
-      setTimeout(fireConfetti, 200);
+    try {
+      if (this.editingId) {
+        AnimeDB.update(this.editingId, data);
+        showToast('已更新 ✨');
+      } else {
+        AnimeDB.add(data);
+        showToast('已添加 🎉');
+        // 添加时放彩纸庆祝
+        setTimeout(fireConfetti, 200);
+      }
+    } catch (error) {
+      if (error && error.code === 'DUPLICATE_TITLE') {
+        showToast('任意模块中已存在相同类型的剧名', 'error');
+        this.formTitle.focus();
+        return;
+      }
+      throw error;
     }
 
     this.closeModal(this.formModal);

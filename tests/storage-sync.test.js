@@ -132,3 +132,32 @@ test('new entries and restored deletions are appended after existing entries', (
     `existing,${added.id},restored`
   );
 });
+
+test('titles are unique across statuses for the same type when spaces differ', () => {
+  const { AnimeDB } = loadAnimeDB();
+  AnimeDB._loaded = true;
+  AnimeDB._cache = [];
+  AnimeDB._pushAfterChange = () => {};
+
+  const first = AnimeDB.add({ title: 'A  Title', status: 'want_to_watch' });
+  const differentTitle = AnimeDB.add({ title: 'Another Title', status: 'want_to_watch' });
+  const differentType = AnimeDB.add({ title: 'A Title', type: 'movie', status: 'watching' });
+
+  assert.equal(first.title, 'A  Title');
+  assert.equal(differentTitle.title, 'Another Title');
+  assert.equal(differentType.type, 'movie');
+  assert.throws(
+    () => AnimeDB.add({ title: ' A Title ', status: 'watching' }),
+    error => error.code === 'DUPLICATE_TITLE'
+  );
+  assert.throws(
+    () => AnimeDB.update(differentTitle.id, { title: 'A\tTitle', type: 'anime' }),
+    error => error.code === 'DUPLICATE_TITLE'
+  );
+  assert.throws(
+    () => AnimeDB.update(differentType.id, { type: 'anime' }),
+    error => error.code === 'DUPLICATE_TITLE'
+  );
+  const updated = AnimeDB.update(first.id, { status: 'completed' });
+  assert.equal(updated.status, 'completed');
+});
