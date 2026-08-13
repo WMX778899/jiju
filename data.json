@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-08-13T09:04:21.791Z",
+  "updatedAt": "2026-08-13T12:43:39.301Z",
   "entries": [
     {
       "id": "mslcnjhsw5476c",
@@ -388,6 +388,15 @@
       "rating": 0,
       "notes": "",
       "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "msrienp94y4yyg",
+      "title": "33  3",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-08-13T12:43:39.261Z"
     }
   ]
 }
