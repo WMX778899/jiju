@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-08-09T05:16:55.517Z",
+  "updatedAt": "2026-08-13T09:04:01.971Z",
   "entries": [
     {
       "id": "mslcnjhsw5476c",
@@ -397,6 +397,15 @@
       "rating": 0,
       "notes": "",
       "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "msrak80z8054xt",
+      "title": "黄昏少女",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-08-13T09:04:01.955Z"
     }
   ]
 }
