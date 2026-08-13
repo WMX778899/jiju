@@ -59,6 +59,11 @@ function sortEntries(entries, sortBy) {
   return sorted;
 }
 
+function resolveSortBy(sortBy, status) {
+  if (sortBy !== 'default') return sortBy;
+  return status === 'want_to_watch' ? 'oldest' : 'newest';
+}
+
 /** 显示 Toast 消息 */
 function showToast(message, type = 'success') {
   const container = document.getElementById('toastContainer');
@@ -199,7 +204,7 @@ class AniListApp {
     this.deletingId = null;
     this.currentType = 'all';
     this.currentStatus = 'want_to_watch';
-    this.currentSort = 'newest';
+    this.currentSort = 'default';
     this.searchQuery = '';
     this.prevStats = { all: 0, watching: 0, want_to_watch: 0, completed: 0 };
     /** 待撤销的删除记录 { id -> entryData } */
@@ -530,7 +535,7 @@ class AniListApp {
     });
 
     // 排序
-    entries = sortEntries(entries, this.currentSort);
+    entries = sortEntries(entries, resolveSortBy(this.currentSort, this.currentStatus));
 
     // 渲染统计
     this.renderStats();

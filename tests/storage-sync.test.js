@@ -113,3 +113,22 @@ test('init reports failure when every remote source is unavailable', async () =>
   assert.strictEqual(AnimeDB._cache, previous);
   assert.equal(AnimeDB._loaded, true);
 });
+
+test('new entries and restored deletions are appended after existing entries', () => {
+  const { AnimeDB } = loadAnimeDB();
+  AnimeDB._loaded = true;
+  AnimeDB._cache = [{ id: 'existing', title: 'Existing entry' }];
+  AnimeDB._pushAfterChange = () => {};
+  AnimeDB._enqueuePush = () => Promise.resolve();
+
+  const added = AnimeDB.add({ title: 'New entry' });
+  const restored = AnimeDB.undoAdd({ id: 'restored', title: 'Restored entry' });
+
+  assert.equal(added.title, 'New entry');
+  assert.equal(added.status, 'want_to_watch');
+  assert.equal(restored.title, 'Restored entry');
+  assert.equal(
+    AnimeDB.getAll().map(entry => entry.id).join(','),
+    `existing,${added.id},restored`
+  );
+});

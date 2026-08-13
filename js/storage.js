@@ -161,7 +161,7 @@ class AnimeDB {
       notes: notes.trim(),
       createdAt: new Date().toISOString(),
     };
-    this._cache.unshift(entry);
+    this._cache.push(entry);
     this._pushAfterChange();
     return entry;
   }
@@ -198,7 +198,7 @@ class AnimeDB {
     this._ensureLoaded();
     if (!entry || !entry.id) return null;
     if (this._cache.some(e => e.id === entry.id)) return entry;
-    this._cache.unshift(entry);
+    this._cache.push(entry);
     this.cancelUndoPush();
     this._enqueuePush(false).catch(() => {});
     return entry;
