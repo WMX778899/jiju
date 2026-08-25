@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-08-25T09:24:04.608Z",
+  "updatedAt": "2026-08-25T09:24:23.852Z",
   "entries": [
     {
       "id": "mslcnjhsw5476c",
@@ -17,15 +17,6 @@
       "type": "anime",
       "status": "completed",
       "rating": 0,
-      "notes": "",
-      "createdAt": "2026-07-20T13:42:44.079766Z"
-    },
-    {
-      "id": "000037rvthzf26",
-      "title": "零之使魔",
-      "type": "anime",
-      "status": "completed",
-      "rating": 5,
       "notes": "",
       "createdAt": "2026-07-20T13:42:44.079766Z"
     },
