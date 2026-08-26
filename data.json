@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-08-25T09:30:53.779Z",
+  "updatedAt": "2026-08-26T06:10:32.514Z",
   "entries": [
     {
       "id": "mslcnjhsw5476c",
@@ -334,6 +334,15 @@
       "rating": 0,
       "notes": "",
       "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "mt9p36owr8k6f3",
+      "title": "异度入侵",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-08-26T06:10:32.480Z"
     }
   ]
 }
