@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-20T15:53:47.530Z",
+  "updatedAt": "2026-09-21T06:56:48.753Z",
   "entries": [
     {
       "id": "mslcnjhsw5476c",
@@ -316,6 +316,15 @@
       "rating": 0,
       "notes": "",
       "createdAt": "2026-08-26T06:10:32.480Z"
+    },
+    {
+      "id": "muaw6u6qpfmjn6",
+      "title": "大主宰",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-09-21T06:56:48.722Z"
     }
   ]
 }
