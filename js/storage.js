@@ -258,6 +258,18 @@ class AnimeDB {
     }
 
     const [owner, name] = cfg.repo.split('/');
+    function githubError(status) {
+      const message = status === 401
+        ? 'GitHub 401：Token 无效或已过期，请重新生成并保存 Token'
+        : status === 403
+          ? 'GitHub 403：Token 没有仓库写入权限，请检查 Contents 权限'
+          : `GitHub ${status}`;
+      const error = new Error(message);
+      error.code = status === 401 ? 'GITHUB_AUTH' : 'GITHUB_API';
+      error.status = status;
+      return error;
+    }
+
     // 每次推送前重新获取最新 sha（不依赖可能过期的缓存）
     async function fetchLatestSha() {
       try {
@@ -265,8 +277,11 @@ class AnimeDB {
           `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
           { headers: { Authorization: `Bearer ${cfg.token}` } }
         );
+        if (r.status === 401) throw githubError(401);
         if (r.ok) { const d = await r.json(); return d.sha; }
-      } catch {}
+      } catch (error) {
+        if (error && error.code === 'GITHUB_AUTH') throw error;
+      }
       return null;
     }
 
@@ -310,9 +325,11 @@ class AnimeDB {
           continue;
         }
 
-        lastErr = new Error(`GitHub ${res.status}`);
+        lastErr = githubError(res.status);
+        if (res.status === 401 || res.status === 403) break;
       } catch (e) {
         lastErr = e;
+        if (e && e.code === 'GITHUB_AUTH') break;
       }
       if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
     }

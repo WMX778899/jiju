@@ -97,6 +97,27 @@ test('a 409 retry rebuilds content from the latest cache', async () => {
   assert.equal(putEntries[1][0].id, 'new');
 });
 
+test('a 401 stops retries and exposes an actionable token error', async () => {
+  let requestCount = 0;
+  const { AnimeDB } = loadAnimeDB({
+    fetch: async () => {
+      requestCount += 1;
+      return { ok: false, status: 401 };
+    },
+  });
+  AnimeDB._cache = [{ id: 'entry', title: 'Entry' }];
+  AnimeDB._loaded = true;
+  AnimeDB.saveGitHubConfig({ token: 'expired-token', repo: 'owner/repo' });
+
+  await assert.rejects(
+    AnimeDB.push(),
+    error => error.code === 'GITHUB_AUTH'
+      && error.status === 401
+      && /Token 无效或已过期/.test(error.message)
+  );
+  assert.equal(requestCount, 1);
+});
+
 test('init reports failure when every remote source is unavailable', async () => {
   const { AnimeDB } = loadAnimeDB({
     fetch: async () => ({ ok: false, status: 503 }),
