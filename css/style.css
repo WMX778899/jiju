@@ -2461,3 +2461,24 @@ body {
   }
 }
 
+/* ============================================================
+   移动端性能优化（置于此处以覆盖上方主题样式）
+   关闭滑动时每帧都要重算的高开销效果，保证列表滑动流畅
+   ============================================================ */
+@media (max-width: 599px), (pointer: coarse) {
+  /* backdrop-filter 模糊在移动端滑动时成本极高 */
+  .header-content,
+  .sync-status,
+  .modal-overlay,
+  .toast {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* 两条无限循环的模糊流光动画 */
+  .app-container::after,
+  .header-content::before {
+    animation: none;
+  }
+}
+

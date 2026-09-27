@@ -7,11 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Zen+Dots&display=swap" rel="stylesheet">
-  <link rel="preload" as="image" href="images/bg1.jpg">
-  <link rel="preload" as="image" href="images/bg4.jpg">
-  <link rel="preload" as="image" href="images/bg5.jpg">
-  <link rel="preload" as="image" href="images/bg6.jpg">
-  <link rel="preload" as="image" href="images/bg11.jpg">
+  <!-- 只预加载首屏背景图，避免 5 张大图抢占首屏带宽 -->
+  <link rel="preload" as="image" href="images/bg1.jpg" fetchpriority="high">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="css/style.css">
   <style>
@@ -42,7 +39,8 @@
       object-fit: cover;
       opacity: 0;
       transition: opacity 1.8s ease;
-      will-change: opacity;
+      /* 不要给 5 张全屏大图都加 will-change：移动端合成层内存会超限，
+         导致背景渲染不完整 */
     }
     .bg-slideshow img.active {
       opacity: 0.94;
@@ -53,11 +51,11 @@
 
   <!-- 背景轮播 -->
   <div class="bg-slideshow" id="bgSlideshow">
-    <img src="images/bg1.jpg" alt="" />
-    <img src="images/bg4.jpg" alt="" />
-    <img src="images/bg5.jpg" alt="" />
-    <img src="images/bg6.jpg" alt="" />
-    <img src="images/bg11.jpg" alt="" />
+    <img src="images/bg1.jpg" alt="" fetchpriority="high" />
+    <img src="images/bg4.jpg" alt="" decoding="async" />
+    <img src="images/bg5.jpg" alt="" decoding="async" />
+    <img src="images/bg6.jpg" alt="" decoding="async" />
+    <img src="images/bg11.jpg" alt="" decoding="async" />
   </div>
 
   <canvas id="particleCanvas"></canvas>
@@ -103,11 +101,28 @@
           idx = previous;
         }
 
-        // Start immediately; waiting for the first load event can leave the gate blank
-        // when the browser serves a cached image or an image fails to load.
-        imgs[0].classList.add('active');
-        imgs[0].addEventListener('error', showNextImage, { once: true });
-        setInterval(showNextImage, 5000);
+        // 首图等真正加载完成后再淡入：移动端慢网下图未下完就显示，
+        // 会出现只渲染出一部分的情况。已缓存的图 complete 为 true，直接显示。
+        // 轮播计时从首图真正显示后开始，避免慢网下首图刚出现就被切走。
+        var first = imgs[0];
+        var rotationTimer = null;
+        function startRotation() {
+          if (rotationTimer) return;
+          rotationTimer = setInterval(showNextImage, 5000);
+        }
+        if (first.complete && first.naturalWidth > 0) {
+          first.classList.add('active');
+          startRotation();
+        } else {
+          first.addEventListener('load', function() {
+            first.classList.add('active');
+            startRotation();
+          }, { once: true });
+          first.addEventListener('error', function() {
+            showNextImage();
+            startRotation();
+          }, { once: true });
+        }
       })();
 
       var input = document.getElementById('gatePassword');

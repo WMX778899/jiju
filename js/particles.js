@@ -17,11 +17,19 @@ class ParticleBackground {
     this.time = 0;
     this.isScrolling = false;
     this.scrollIdleTimer = null;
+    // 移动端/触屏设备使用低配模式：更少的粒子、无光晕渐变、无两两连线，
+    // 避免每帧大量 createRadialGradient/stroke 占用主线程导致滑动卡顿。
+    this.lowPower = ParticleBackground.isLowPowerDevice();
     this.resize();
     this.initParticles();
     this.initStars();
     this.bindEvents();
     this.animate();
+  }
+
+  static isLowPowerDevice() {
+    const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    return coarse || window.innerWidth < 768;
   }
 
   resize() {
@@ -30,7 +38,9 @@ class ParticleBackground {
   }
 
   initParticles() {
-    const count = Math.min(120, Math.floor((this.canvas.width * this.canvas.height) / 12000));
+    const maxCount = this.lowPower ? 36 : 120;
+    const divisor = this.lowPower ? 24000 : 12000;
+    const count = Math.min(maxCount, Math.floor((this.canvas.width * this.canvas.height) / divisor));
     this.particles = Array.from({ length: count }, () => ({
       x: Math.random() * this.canvas.width,
       y: Math.random() * this.canvas.height,
@@ -45,7 +55,7 @@ class ParticleBackground {
   }
 
   initStars() {
-    this.stars = Array.from({ length: 30 }, () => ({
+    this.stars = Array.from({ length: this.lowPower ? 12 : 30 }, () => ({
       x: Math.random() * this.canvas.width,
       y: Math.random() * this.canvas.height,
       size: Math.random() * 1.2 + 0.3,
@@ -63,14 +73,17 @@ class ParticleBackground {
     };
     window.addEventListener('resize', resizeFn);
 
-    document.addEventListener('mousemove', (e) => {
-      this.mouse.x = e.clientX;
-      this.mouse.y = e.clientY;
-    });
-    document.addEventListener('mouseleave', () => {
-      this.mouse.x = -999;
-      this.mouse.y = -999;
-    });
+    // 触屏设备没有鼠标跟随，不必监听，减少触摸滑动时的事件开销
+    if (!this.lowPower) {
+      document.addEventListener('mousemove', (e) => {
+        this.mouse.x = e.clientX;
+        this.mouse.y = e.clientY;
+      });
+      document.addEventListener('mouseleave', () => {
+        this.mouse.x = -999;
+        this.mouse.y = -999;
+      });
+    }
 
     // Keep decorative canvas work out of the touch-scroll critical path.
     window.addEventListener('scroll', () => {
@@ -125,13 +138,16 @@ class ParticleBackground {
       const breathe = Math.sin(p.pulse) * 0.3 + 0.7;
       const currentSize = p.size * breathe;
 
-      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, currentSize * 4);
-      gradient.addColorStop(0, `hsla(${p.hue}, 80%, 70%, ${p.alpha * 0.4})`);
-      gradient.addColorStop(1, `hsla(${p.hue}, 80%, 70%, 0)`);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, currentSize * 4, 0, Math.PI * 2);
-      ctx.fillStyle = gradient;
-      ctx.fill();
+      // 光晕径向渐变是每帧最贵的操作，低配模式下跳过
+      if (!this.lowPower) {
+        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, currentSize * 4);
+        gradient.addColorStop(0, `hsla(${p.hue}, 80%, 70%, ${p.alpha * 0.4})`);
+        gradient.addColorStop(1, `hsla(${p.hue}, 80%, 70%, 0)`);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, currentSize * 4, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+      }
 
       const coreAlpha = Math.sin(p.pulse) * 0.1 + 0.3;
       ctx.beginPath();
@@ -145,21 +161,24 @@ class ParticleBackground {
       ctx.fill();
     }
 
-    const lineGlow = Math.sin(this.time * 2) * 0.02 + 0.06;
-    for (let i = 0; i < particles.length; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const dx = particles[i].x - particles[j].x;
-        const dy = particles[i].y - particles[j].y;
-        const dist = dx * dx + dy * dy;
-        if (dist < 20000) {
-          const alpha = lineGlow * (1 - dist / 20000);
-          const hue = (particles[i].hue + particles[j].hue) / 2;
-          ctx.beginPath();
-          ctx.moveTo(particles[i].x, particles[i].y);
-          ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.strokeStyle = `hsla(${hue}, 70%, 65%, ${alpha})`;
-          ctx.lineWidth = 0.6;
-          ctx.stroke();
+    // 粒子两两连线是 O(n²) 且每条都要 stroke，低配模式下跳过
+    if (!this.lowPower) {
+      const lineGlow = Math.sin(this.time * 2) * 0.02 + 0.06;
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = dx * dx + dy * dy;
+          if (dist < 20000) {
+            const alpha = lineGlow * (1 - dist / 20000);
+            const hue = (particles[i].hue + particles[j].hue) / 2;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `hsla(${hue}, 70%, 65%, ${alpha})`;
+            ctx.lineWidth = 0.6;
+            ctx.stroke();
+          }
         }
       }
     }
@@ -231,7 +250,9 @@ function createAnimeSilhouettes() {
   const container = document.createElement('div');
   container.className = 'anime-bg-container';
 
-  const count = 10;
+  // 移动端减少剪影数量并关闭模糊滤镜，避免持续动画拖累滑动帧率
+  const lowPower = ParticleBackground.isLowPowerDevice();
+  const count = lowPower ? 4 : 10;
   const w = window.innerWidth;
   const h = window.innerHeight;
 
@@ -255,7 +276,7 @@ function createAnimeSilhouettes() {
       color: ${color};
       opacity: ${opacity};
       animation: ${anim} ${dur}s ease-in-out ${delay}s infinite;
-      filter: blur(${0.5 + Math.random() * 1.5}px);
+      ${lowPower ? '' : `filter: blur(${0.5 + Math.random() * 1.5}px);`}
     `;
     container.appendChild(el);
   }
