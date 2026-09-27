@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-26T13:29:29.648Z",
+  "updatedAt": "2026-09-27T00:06:59.963Z",
   "entries": [
     {
       "id": "mslcnjhsw5476c",
@@ -79,15 +79,6 @@
       "title": "至暗时刻",
       "type": "movie",
       "status": "completed",
-      "rating": 0,
-      "notes": "",
-      "createdAt": "2026-07-20T13:42:44.079766Z"
-    },
-    {
-      "id": "000037rvqdf05t",
-      "title": "我叫白小飞",
-      "type": "anime",
-      "status": "want_to_watch",
       "rating": 0,
       "notes": "",
       "createdAt": "2026-07-20T13:42:44.079766Z"
