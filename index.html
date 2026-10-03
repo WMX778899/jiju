@@ -6,57 +6,34 @@
   <title>AniList · 入口</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Zen+Dots&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=Zen+Dots&display=swap" rel="stylesheet">
   <!-- 只预加载首屏背景图，避免 5 张大图抢占首屏带宽 -->
   <link rel="preload" as="image" href="images/bg1.jpg" fetchpriority="high">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=4">
   <style>
     body { margin: 0; overflow: hidden; background: #0b0a12; }
-    #particleCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
-
-    /* 背景轮播 */
-    .bg-slideshow {
+    #bgCanvas { position: fixed; inset: 0; z-index: 0; background: #0b0a12; }
+    /* 深色渐变遮罩（等价于旧 .bg-slideshow::after） */
+    .bg-shade {
       position: fixed;
       inset: 0;
       z-index: 0;
-      background: #0b0a12;
-    }
-    .bg-slideshow::after {
-      content: '';
-      position: absolute;
-      inset: 0;
+      pointer-events: none;
       background:
         linear-gradient(90deg, rgba(7, 9, 15, 0.58) 0%, rgba(7, 9, 15, 0.22) 48%, rgba(7, 9, 15, 0.46) 100%),
         linear-gradient(180deg, rgba(7, 9, 15, 0.12), rgba(7, 9, 15, 0.58));
-      pointer-events: none;
     }
-    .bg-slideshow img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0;
-      transition: opacity 1.8s ease;
-      /* 不要给 5 张全屏大图都加 will-change：移动端合成层内存会超限，
-         导致背景渲染不完整 */
-    }
-    .bg-slideshow img.active {
-      opacity: 0.94;
-    }
+    #particleCanvas { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
   </style>
 </head>
 <body>
 
-  <!-- 背景轮播 -->
-  <div class="bg-slideshow" id="bgSlideshow">
-    <img src="images/bg1.jpg" alt="" fetchpriority="high" />
-    <img src="images/bg4.jpg" alt="" decoding="async" />
-    <img src="images/bg5.jpg" alt="" decoding="async" />
-    <img src="images/bg6.jpg" alt="" decoding="async" />
-    <img src="images/bg11.jpg" alt="" decoding="async" />
-  </div>
+  <!-- 背景轮播：单 canvas 逐帧绘制。羽化圆扩展 + 由虚化对焦 + Ken Burns
+       全部在 2D 绘制里完成，不创建/销毁任何合成层——合成层的资源分配
+       尖峰会挤掉其它层纹理，表现为切换前后背景忽闪暗一下（旧方案根因） -->
+  <canvas id="bgCanvas"></canvas>
+  <div class="bg-shade"></div>
 
   <canvas id="particleCanvas"></canvas>
 
@@ -82,96 +59,227 @@
       var c = document.getElementById('particleCanvas');
       if (c) new ParticleBackground(c);
 
-      // 背景图轮播
+      // 背景图轮播：单 canvas 逐帧绘制。
+      // 羽化圆扩展 + 由虚化对焦 + Ken Burns 全部在 2D 绘制里完成，
+      // 不创建/销毁任何合成层——合成层的资源分配尖峰会挤掉其它层纹理，
+      // 表现为切换前后背景忽闪暗一下（旧 CSS 方案的根因）。
       (function() {
-        var imgs = document.querySelectorAll('#bgSlideshow img');
-        if (imgs.length === 0) return;
-        var idx = 0;
+        var SOURCES = ['images/bg1.jpg', 'images/bg4.jpg', 'images/bg5.jpg', 'images/bg6.jpg', 'images/bg11.jpg'];
+        var originNow = [0.5, 0.5];   // 当前扩展起点：每次切换随机，且与上次不同
+        var REVEAL = 4000, INTERVAL = 7000, KB = 22000, BLUR = 16, FEATHER = 0.2;
+        var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        function showNextImage() {
-          var previous = idx;
-          for (var step = 1; step <= imgs.length; step++) {
-            idx = (previous + step) % imgs.length;
-            if (imgs[idx].naturalWidth > 0) {
-              imgs[previous].classList.remove('active');
-              imgs[idx].classList.add('active');
-              return;
+        var canvas = document.getElementById('bgCanvas');
+        var ctx = canvas.getContext('2d');
+        var buf = document.createElement('canvas');
+        var bctx = buf.getContext('2d');
+        var imgs = [], loaded = 0;
+        var current = 0;
+        var born = [];   // 每张图的激活时刻（Ken Burns 相位用），首图可能为负
+        var shown = [];  // 是否已显示过（不能用 born 的正负判断，首图 born 为负）
+
+        function resize() {
+          canvas.width = buf.width = window.innerWidth;
+          canvas.height = buf.height = window.innerHeight;
+        }
+        window.addEventListener('resize', function() { resize(); draw(performance.now()); });
+
+        SOURCES.forEach(function(src) {
+          var im = new Image();
+          im.onload = im.onerror = function() { if (++loaded === SOURCES.length) begin(); };
+          im.src = src;
+          imgs.push(im);
+        });
+
+        function begin() {
+          resize();
+          var now = performance.now();
+          born = SOURCES.map(function() { return -1; });
+          shown = SOURCES.map(function() { return false; });
+          // 首图直接完整显示，不走开场渐变（激活时刻前移到扩展期之外；
+          // 本地图加载快时该时刻会是负数，属正常，Ken Burns 相位随之略前移）
+          born[0] = now - REVEAL - 1;
+          shown[0] = true;
+          draw(now);
+          setInterval(function() { advance(performance.now()); }, INTERVAL);
+          requestAnimationFrame(loop);
+        }
+
+        // 随机扩展起点：与上一次保持足够距离，保证每次观感不同
+        function randomOrigin() {
+          var o, tries = 0;
+          do {
+            o = [0.12 + Math.random() * 0.76, 0.12 + Math.random() * 0.76];
+            tries++;
+          } while (tries < 8 && Math.hypot(o[0] - originNow[0], o[1] - originNow[1]) < 0.35);
+          return o;
+        }
+
+        function advance(now) {
+          current = (current + 1) % imgs.length;
+          born[current] = now;
+          shown[current] = true;
+          originNow = randomOrigin();
+        }
+
+        // 与原 CSS cubic-bezier 一致的缓动
+        function bezier(x1, y1, x2, y2) {
+          var X = function(t) { var u = 1 - t; return 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t; };
+          var Y = function(t) { var u = 1 - t; return 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t; };
+          return function(x) {
+            var lo = 0, hi = 1, t = x, vx, i;
+            for (i = 0; i < 20; i++) {
+              vx = X(t);
+              if (Math.abs(vx - x) < 1e-4) break;
+              if (vx < x) lo = t; else hi = t;
+              t = (lo + hi) / 2;
             }
+            return Y(t);
+          };
+        }
+        var easeReveal = bezier(0.3, 0, 0.25, 1);
+        var easeBlur = bezier(0.35, 0, 0.45, 1);
+
+        // Ken Burns：先收敛（scale 1.14→1.08）再缓推（→1.22，右下轻移）
+        function kbPhase(now, bornAt, w, h) {
+          var q = Math.min(Math.max((now - bornAt) / KB, 0), 1);
+          var s, tx, ty;
+          if (q < 0.18) {
+            s = 1.14 - 0.06 * (q / 0.18); tx = 0; ty = 0;
+          } else {
+            var r = (q - 0.18) / 0.82;
+            s = 1.08 + 0.14 * r; tx = -0.02 * w * r; ty = 0.02 * h * r;
           }
-          idx = previous;
+          return { s: s, tx: tx, ty: ty };
         }
 
-        // 首图等真正加载完成后再淡入：移动端慢网下图未下完就显示，
-        // 会出现只渲染出一部分的情况。已缓存的图 complete 为 true，直接显示。
-        // 轮播计时从首图真正显示后开始，避免慢网下首图刚出现就被切走。
-        var first = imgs[0];
-        var rotationTimer = null;
-        function startRotation() {
-          if (rotationTimer) return;
-          rotationTimer = setInterval(showNextImage, 5000);
+        function drawKB(c, img, bornAt, now, w, h) {
+          if (!img.naturalWidth) return;
+          var kb = kbPhase(now, bornAt, w, h);
+          var ir = img.width / img.height, cr = w / h, dw, dh;
+          if (ir > cr) { dh = h; dw = h * ir; } else { dw = w; dh = w / ir; }
+          c.save();
+          c.translate(w / 2 + kb.tx, h / 2 + kb.ty);
+          c.scale(kb.s, kb.s);
+          c.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+          c.restore();
         }
-        if (first.complete && first.naturalWidth > 0) {
-          first.classList.add('active');
-          startRotation();
-        } else {
-          first.addEventListener('load', function() {
-            first.classList.add('active');
-            startRotation();
-          }, { once: true });
-          first.addEventListener('error', function() {
-            showNextImage();
-            startRotation();
-          }, { once: true });
+
+        function farthest(w, h, o) {
+          return Math.max(
+            Math.hypot(o[0] * w, o[1] * h),
+            Math.hypot((1 - o[0]) * w, o[1] * h),
+            Math.hypot(o[0] * w, (1 - o[1]) * h),
+            Math.hypot((1 - o[0]) * w, (1 - o[1]) * h)
+          );
         }
-      })();
 
-      var input = document.getElementById('gatePassword');
-      var btn = document.getElementById('gateBtn');
-      var error = document.getElementById('gateError');
-      var wrap = document.getElementById('gateWrap');
+        function draw(now) {
+          var w = canvas.width, h = canvas.height;
+          if (!w || !h || born.length === 0) return;
+          var dur = reduced ? 1000 : REVEAL;
+          var age = now - born[current];
+          var p = Math.min(Math.max(age / dur, 0), 1);
+          var revealing = shown[current] && age >= 0 && p < 1;
+          var back = (current + imgs.length - 1) % imgs.length;
 
-      if (sessionStorage.getItem('anilist_gate_passed') === '1') {
-        window.location.replace('app.html');
-        return;
-      }
+          if (revealing) {
+            // 扩展期：底下是上一张（首图首次显示时底下是深色底）
+            if (shown[back]) {
+              drawKB(ctx, imgs[back], born[back], now, w, h);
+            } else {
+              ctx.fillStyle = '#0b0a12';
+              ctx.fillRect(0, 0, w, h);
+            }
+          } else {
+            // 静置期：只画当前图
+            drawKB(ctx, imgs[current], born[current], now, w, h);
+            return;
+          }
 
-      function tryEnter() {
-        if (input.value === PASSWORD) {
-          sessionStorage.setItem('anilist_gate_passed', '1');
-          btn.disabled = true;
-          input.classList.remove('shake');
-          input.classList.add('success');
-          input.disabled = true;
-          setTimeout(function() {
-            wrap.style.opacity = '0';
-            wrap.style.transition = 'opacity 0.4s ease';
-            setTimeout(function() { window.location.replace('app.html'); }, 400);
-          }, 300);
-        } else {
-          input.classList.remove('success');
-          input.classList.add('shake');
-          error.classList.add('show');
-          input.value = '';
-          input.blur();
-          setTimeout(function() {
+          var o = originNow;
+          if (reduced) {
+            // 减少动态：纯交叉淡入
+            ctx.save();
+            ctx.globalAlpha = easeReveal(p);
+            drawKB(ctx, imgs[current], born[current], now, w, h);
+            ctx.restore();
+            return;
+          }
+
+          // 新图：模糊对焦 + Ken Burns，画到离屏后用羽化圆裁出
+          bctx.setTransform(1, 0, 0, 1, 0, 0);
+          bctx.clearRect(0, 0, w, h);
+          var blur = BLUR * (1 - easeBlur(p));
+          if (blur > 0.3) bctx.filter = 'blur(' + blur.toFixed(1) + 'px)';
+          drawKB(bctx, imgs[current], born[current], now, w, h);
+          bctx.filter = 'none';
+
+          var fc = farthest(w, h, o);
+          var r = 1.25 * easeReveal(p) * fc;
+          var inner = Math.max(0, r - FEATHER * fc);
+          var g = bctx.createRadialGradient(o[0] * w, o[1] * h, inner, o[0] * w, o[1] * h, Math.max(r, 0.001));
+          g.addColorStop(0, 'rgba(0,0,0,1)');
+          g.addColorStop(1, 'rgba(0,0,0,0)');
+          bctx.globalCompositeOperation = 'destination-in';
+          bctx.fillStyle = g;
+          bctx.fillRect(0, 0, w, h);
+          bctx.globalCompositeOperation = 'source-over';
+
+          ctx.drawImage(buf, 0, 0);
+        }
+
+        function loop(now) { draw(now); requestAnimationFrame(loop); }
+
+        // 门禁逻辑
+        var input = document.getElementById('gatePassword');
+        var btn = document.getElementById('gateBtn');
+        var error = document.getElementById('gateError');
+        var wrap = document.getElementById('gateWrap');
+
+        if (sessionStorage.getItem('anilist_gate_passed') === '1') {
+          window.location.replace('app.html');
+          return;
+        }
+
+        function tryEnter() {
+          if (input.value === PASSWORD) {
+            sessionStorage.setItem('anilist_gate_passed', '1');
+            btn.disabled = true;
             input.classList.remove('shake');
-            input.focus();
-          }, 500);
+            input.classList.add('success');
+            input.disabled = true;
+            setTimeout(function() {
+              wrap.style.opacity = '0';
+              wrap.style.transition = 'opacity 0.4s ease';
+              setTimeout(function() { window.location.replace('app.html'); }, 400);
+            }, 300);
+          } else {
+            input.classList.remove('success');
+            input.classList.add('shake');
+            error.classList.add('show');
+            input.value = '';
+            input.blur();
+            setTimeout(function() {
+              input.classList.remove('shake');
+              input.focus();
+            }, 500);
+          }
         }
-      }
 
-      input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') { e.preventDefault(); tryEnter(); }
-      });
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') { e.preventDefault(); tryEnter(); }
+        });
 
-      btn.addEventListener('click', tryEnter);
+        btn.addEventListener('click', tryEnter);
 
-      input.addEventListener('input', function() {
-        error.classList.remove('show');
-        input.classList.remove('shake');
-      });
+        input.addEventListener('input', function() {
+          error.classList.remove('show');
+          input.classList.remove('shake');
+        });
 
-      setTimeout(function() { input.focus(); }, 600);
+        setTimeout(function() { input.focus(); }, 600);
+      })();
     })();
   </script>
 </body>

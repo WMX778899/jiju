@@ -40,6 +40,9 @@
   --shadow-modal: 0 8px 48px rgba(0, 0, 0, 0.6);
   --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  /* 弹簧缓动：带轻微回弹，更接近真实物理 */
+  --transition-spring: 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-spring-soft: 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ---------- 鍏抽敭甯у姩鐢?---------- */
@@ -154,7 +157,7 @@ body {
 
 .sync-status.sync-syncing {
   border-color: rgba(59, 130, 246, 0.35);
-  color: var(--success);
+  color: #60a5fa;
 }
 
 .sync-status.sync-syncing i {
@@ -522,14 +525,6 @@ body {
   box-shadow: 0 0 16px var(--accent-glow);
 }
 
-.stat-count {
-  display: block;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.2;
-}
-
 .stat-label {
   font-size: 11px;
   color: var(--text-muted);
@@ -543,6 +538,10 @@ body {
 .stat-label i {
   font-size: 10px;
 }
+
+.stat-item[data-status='want_to_watch'] .stat-label i { color: var(--want-color); }
+.stat-item[data-status='watching'] .stat-label i { color: var(--watching-color); }
+.stat-item[data-status='completed'] .stat-label i { color: var(--completed-color); }
 
 /* ============================================================
    鍗＄墖鍒楄〃
@@ -560,7 +559,11 @@ body {
   border-radius: var(--card-radius);
   padding: 16px;
   cursor: pointer;
-  transition: var(--transition);
+  transition:
+    transform var(--transition-spring),
+    border-color var(--transition),
+    box-shadow var(--transition),
+    background var(--transition);
   animation: cardEnter 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
   position: relative;
   overflow: hidden;
@@ -607,8 +610,9 @@ body {
 .card:active { transform: scale(0.97); }
 
 @keyframes cardEnter {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+  0% { opacity: 0; transform: translateY(16px) scale(0.98); }
+  60% { opacity: 1; transform: translateY(-3px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* 鍗＄墖澶撮儴 */
@@ -652,9 +656,30 @@ body {
   pointer-events: none;
 }
 
+/* 类型色：默认走主题色，具体类型由 data-type 决定（色值来源 :root --*-color 变量） */
+.card-type-badge {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--accent);
+}
+
+.card-type-badge[data-type='anime'] {
+  background: color-mix(in srgb, var(--anime-color) 9%, transparent);
+  color: var(--anime-color);
+}
+
+.card-type-badge[data-type='drama'] {
+  background: color-mix(in srgb, var(--drama-color) 9%, transparent);
+  color: var(--drama-color);
+}
+
+.card-type-badge[data-type='movie'] {
+  background: color-mix(in srgb, var(--movie-color) 9%, transparent);
+  color: var(--movie-color);
+}
+
 .card:hover .card-type-badge {
   transform: scale(1.08);
-  box-shadow: 0 0 16px currentColor33;
+  box-shadow: 0 0 16px color-mix(in srgb, currentColor 33%, transparent);
 }
 
 .card-title {
@@ -711,15 +736,6 @@ body {
   justify-content: space-between;
   margin-top: 10px;
 }
-
-.card-rating {
-  display: flex;
-  gap: 2px;
-  font-size: 14px;
-  color: var(--text-muted);
-}
-
-.card-rating .star-filled { color: #f59e0b; }
 
 .card-date {
   font-size: 11px;
@@ -836,7 +852,7 @@ body {
 }
 
 .fab:hover {
-  transform: scale(1.1) rotate(90deg);
+  transform: scale(1.1);
   box-shadow: 0 6px 30px var(--accent-glow);
 }
 
@@ -1052,30 +1068,6 @@ body {
   box-shadow: 0 0 16px var(--accent-glow);
 }
 
-/* 鏄熸槦璇勫垎 */
-.star-rating {
-  display: flex;
-  gap: 4px;
-  font-size: 30px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.star-rating .star {
-  transition: var(--transition);
-  color: var(--text-muted);
-}
-
-.star-rating .star.active {
-  color: #f59e0b;
-  text-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
-  transform: scale(1.1);
-}
-
-.star-rating .star:hover {
-  transform: scale(1.2);
-}
-
 /* 鎸夐挳 */
 .form-actions {
   display: flex;
@@ -1092,7 +1084,10 @@ body {
   font-weight: 600;
   font-family: var(--font-main);
   cursor: pointer;
-  transition: var(--transition);
+  transition:
+    transform var(--transition-spring),
+    box-shadow var(--transition),
+    background var(--transition);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1129,6 +1124,39 @@ body {
 .btn-danger:hover {
   background: var(--danger-hover);
   transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+/* GitHub 云同步弹窗辅助元素 */
+.form-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.form-hint a { color: var(--accent); text-decoration: none; }
+.form-hint a:hover { text-decoration: underline; }
+
+.github-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.github-actions .btn {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.github-status {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 4px 0;
 }
 
 /* 鍒犻櫎寮圭獥 */
@@ -1326,8 +1354,8 @@ body {
 
   .stat-item { min-width: 50px; padding: 6px 2px; border-radius: 10px; }
   .stat-count { font-size: 16px; }
-  .stat-label { font-size: 9px; gap: 2px; }
-  .stat-label i { font-size: 8px; }
+  .stat-label { font-size: 10px; gap: 2px; }
+  .stat-label i { font-size: 9px; }
 
   .filter-select { font-size: 11px; padding: 7px 8px; padding-right: 26px; background-size: 10px; }
 
@@ -1340,8 +1368,8 @@ body {
   .modal-content { padding: 16px 14px 20px; border-radius: 16px 16px 0 0; }
   .modal-title { font-size: 17px; }
 
-  .sync-status { top: 6px; right: 6px; padding: 3px 8px; font-size: 9px; gap: 3px; }
-  .sync-status i { font-size: 9px; }
+  .sync-status { top: 6px; right: 6px; padding: 3px 8px; font-size: 10px; gap: 3px; }
+  .sync-status i { font-size: 10px; }
 
   .toast { font-size: 12px; padding: 8px 16px; }
   .undo-btn { font-size: 11px; padding: 4px 10px; }
@@ -1411,11 +1439,6 @@ body {
   .confetti-piece { font-size: 12px !important; }
 
   .toast-container { bottom: 80px; }
-
-  /* Token 密码查看：iOS 防止自动缩放 + 小屏适配 */
-  #tokenRevealPwd { font-size: 16px; }
-  #tokenRevealGate > div { flex-wrap: wrap; }
-  #tokenRevealGate > div > button { width: 100%; }
 }
 
 /* 鈹€鈹€ 骞虫澘 (600~959px) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
@@ -1852,7 +1875,6 @@ body {
 
 .header-subtitle {
   color: var(--text-muted);
-  border-left-color: rgba(151, 171, 192, 0.26);
 }
 
 .header-btn {
@@ -1906,6 +1928,7 @@ body {
   padding: 12px 14px;
   border-top: 0;
   border-bottom: 0;
+  margin-bottom: 0;
 }
 
 .stat-item {
@@ -2058,7 +2081,7 @@ body {
   box-shadow: 0 14px 30px rgba(118, 215, 196, 0.3);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599px) {
   .app-container { padding-top: 14px; }
   .gate-wrap { padding: 0 20px 44px; }
   .gate-box { max-width: 330px; }
@@ -2137,8 +2160,8 @@ body {
   position: absolute;
   top: 3px;
   left: 14px;
-  color: rgba(165, 181, 185, 0.46);
-  font-size: 8px;
+  color: var(--text-muted);
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.18em;
 }
@@ -2209,6 +2232,7 @@ body {
 }
 
 .card-delete-btn {
+  flex-shrink: 0;
   opacity: 0.55;
 }
 
@@ -2220,10 +2244,6 @@ body {
 .card-footer {
   margin-top: auto;
   padding-top: 18px;
-}
-
-.card-rating {
-  opacity: 0.82;
 }
 
 .empty-state {
@@ -2266,6 +2286,12 @@ body {
   filter: blur(1px);
   pointer-events: none;
   animation: lavenderFlow 11s ease-in-out infinite;
+}
+
+/* 移动端 header 更矮，两条装饰流光随之上移，跟随 header 底部位置 */
+@media (max-width: 599px) {
+  .app-container::before { top: 48px; }
+  .app-container::after { top: 74px; }
 }
 
 .header-content::before {
@@ -2411,19 +2437,6 @@ body {
     text-size-adjust: 100%;
   }
 
-  .star-rating .star {
-    min-width: 36px;
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .star-rating .star:active {
-    transform: scale(1.2);
-  }
-
   #formModal {
     align-items: flex-end;
     padding: 0;
@@ -2480,5 +2493,48 @@ body {
   .header-content::before {
     animation: none;
   }
+}
+
+/* ============================================================
+   FAB 悬停：随机向左或向右放大旋转 180°（JS 悬停时随机添加方向类，
+   移出时移除类复位）。置于文件末尾以覆盖各主题的 .fab 动画声明
+   ============================================================ */
+.fab.spin-left {
+  animation: fab-spin-left 0.6s ease forwards;
+}
+
+.fab.spin-right {
+  animation: fab-spin-right 0.6s ease forwards;
+}
+
+@keyframes fab-spin-left {
+  from { transform: rotate(0deg) scale(1); }
+  to { transform: rotate(-180deg) scale(1.18); }
+}
+
+@keyframes fab-spin-right {
+  from { transform: rotate(0deg) scale(1); }
+  to { transform: rotate(180deg) scale(1.18); }
+}
+
+/* ============================================================
+   键盘焦点可见性：:focus-visible 仅在键盘导航时显示轮廓，
+   不影响鼠标点击时的 :focus 光晕效果
+   ============================================================ */
+.filter-select:focus-visible,
+.stat-search:focus-visible,
+.form-input:focus-visible,
+.form-select:focus-visible,
+.form-textarea:focus-visible,
+.btn:focus-visible,
+.header-btn:focus-visible,
+.modal-close:focus-visible,
+.card-delete-btn:focus-visible,
+.undo-btn:focus-visible,
+.fab:focus-visible,
+.gate-input:focus-visible,
+.gate-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 

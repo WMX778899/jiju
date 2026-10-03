@@ -48,9 +48,6 @@ function sortEntries(entries, sortBy) {
     case 'title':
       sorted.sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
       break;
-    case 'rating':
-      sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0) || new Date(b.createdAt) - new Date(a.createdAt));
-      break;
     case 'newest':
     default:
       sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -163,7 +160,7 @@ function fireConfetti() {
   container.className = 'confetti-container';
   document.body.appendChild(container);
 
-  const colors = ['#a855f7', '#ec4899', '#f59e0b', '#22c55e', '#60a5fa', '#f472b6', '#c084fc'];
+  const colors = ['#c4b5fd', '#a78bfa', '#ddd6fe', '#f5f1ff', '#8b5cf6', '#d8ccff'];
   const shapes = ['■', '●', '▲', '★', '♦'];
 
   for (let i = 0; i < 50; i++) {
@@ -216,6 +213,8 @@ class AniListApp {
     this.cacheDom();
     this.statusFilter.value = this.currentStatus;
     this.bindEvents();
+    // 云端推送失败回滚时，自动刷新界面，保证与服务器一致
+    AnimeDB.onChange(() => this.render());
     this.render();
     // 暴露给全局，用于远程同步时自动刷新
     window.__anilistApp = this;
@@ -265,10 +264,8 @@ class AniListApp {
     this.formTitle = this.$('formTitle');
     this.formType = this.$('formType');
     this.formStatus = this.$('formStatus');
-    this.formRating = this.$('formRating');
     this.formNotes = this.$('formNotes');
     this.formSubmit = this.$('formSubmit');
-    this.starRatingEl = this.$('starRating');
 
     // 删除模态框
     this.deleteModal = this.$('deleteModal');
@@ -305,18 +302,23 @@ class AniListApp {
       if (e.target.closest('.stat-search')) return;
       const statItem = e.target.closest('.stat-item');
       if (!statItem) return;
-      const status = statItem.dataset.status;
-      if (status === 'all') {
-        this.statusFilter.value = 'all';
-      } else {
-        this.statusFilter.value = status;
-      }
+      this.statusFilter.value = statItem.dataset.status;
       this.currentStatus = this.statusFilter.value;
       this.render();
     });
 
     // 浮动按钮 → 打开添加表单
     this.fabAdd.addEventListener('click', () => this.openForm());
+
+    // 悬停：随机向左或向右放大旋转 180°，移出时复位
+    this.fabAdd.addEventListener('mouseenter', () => {
+      this.fabAdd.classList.remove('spin-left', 'spin-right');
+      void this.fabAdd.offsetWidth;   // 重置动画，确保每次悬停都重新播放
+      this.fabAdd.classList.add(Math.random() < 0.5 ? 'spin-left' : 'spin-right');
+    });
+    this.fabAdd.addEventListener('mouseleave', () => {
+      this.fabAdd.classList.remove('spin-left', 'spin-right');
+    });
 
     // 表单提交
     this.animeForm.addEventListener('submit', (e) => {
@@ -328,33 +330,6 @@ class AniListApp {
     const closeForm = () => this.closeModal(this.formModal);
     this.modalClose.addEventListener('click', closeForm);
     this.formCancel.addEventListener('click', closeForm);
-
-    // 星星评分
-    this.starRatingEl.addEventListener('click', (e) => {
-      const star = e.target.closest('.star');
-      if (!star) return;
-      const value = parseInt(star.dataset.value, 10);
-      this.setRating(value);
-    });
-
-    this.starRatingEl.addEventListener('mouseover', (e) => {
-      const star = e.target.closest('.star');
-      if (!star) return;
-      const value = parseInt(star.dataset.value, 10);
-      this.previewRating(value);
-    });
-
-    this.starRatingEl.addEventListener('pointerdown', (e) => {
-      if (e.pointerType === 'mouse') return;
-      const star = e.target.closest('.star');
-      if (!star) return;
-      const value = parseInt(star.dataset.value, 10);
-      this.previewRating(value);
-    });
-
-    this.starRatingEl.addEventListener('mouseleave', () => {
-      this.previewRating(null);
-    });
 
     // 关闭删除弹窗
     const closeDelete = () => this.closeModal(this.deleteModal);
@@ -379,28 +354,6 @@ class AniListApp {
     });
   }
 
-  // ===== 星星评分 =====
-  setRating(value) {
-    this.formRating.value = value;
-    const stars = this.starRatingEl.querySelectorAll('.star');
-    stars.forEach((star, i) => {
-      star.classList.toggle('active', i < value);
-      star.textContent = i < value ? '★' : '☆';
-    });
-  }
-
-  previewRating(value) {
-    const stars = this.starRatingEl.querySelectorAll('.star');
-    const current = parseInt(this.formRating.value, 10);
-    stars.forEach((star, i) => {
-      if (value === null) {
-        star.textContent = i < current ? '★' : '☆';
-      } else {
-        star.textContent = i < value ? '★' : '☆';
-      }
-    });
-  }
-
   // ===== 打开表单 =====
   openForm(entry = null) {
     this.formModal.classList.add('open');
@@ -417,7 +370,6 @@ class AniListApp {
       this.formType.value = entry.type;
       this.formStatus.value = entry.status;
       this.formNotes.value = entry.notes || '';
-      this.setRating(entry.rating || 0);
     } else {
       // 添加模式
       this.editingId = null;
@@ -425,8 +377,6 @@ class AniListApp {
       this.formSubmit.innerHTML = '<i class="fas fa-check"></i> 保存';
       this.animeForm.reset();
       this.formId.value = '';
-      this.formRating.value = '0';
-      this.setRating(0);
     }
 
     // 聚焦名称输入
@@ -442,8 +392,8 @@ class AniListApp {
 
   // ===== 表单提交 =====
   handleFormSubmit() {
-    const title = this.formTitle.value;
-    if (!title.trim()) {
+    const title = this.formTitle.value.trim();
+    if (!title) {
       showToast('请输入名称', 'error');
       this.formTitle.focus();
       return;
@@ -453,7 +403,6 @@ class AniListApp {
       title,
       type: this.formType.value,
       status: this.formStatus.value,
-      rating: parseInt(this.formRating.value, 10) || 0,
       notes: this.formNotes.value.trim(),
     };
 
@@ -473,7 +422,8 @@ class AniListApp {
         this.formTitle.focus();
         return;
       }
-      throw error;
+      showToast('保存失败：' + (error && error.message ? error.message : '未知错误'), 'error');
+      return;
     }
 
     this.closeModal(this.formModal);
@@ -491,31 +441,51 @@ class AniListApp {
   }
 
   handleDelete() {
-    if (!this.deletingId) return;
+    const id = this.deletingId;
+    if (!id) return;
 
-    const entry = AnimeDB.getById(this.deletingId);
-    if (!entry) { this.deletingId = null; return; }
-
-    // 保存完整数据用于可能的撤销
-    this.pendingDeletes[this.deletingId] = { ...entry };
-
-    // 卡片淡出动画
-    const card = this.listContainer.querySelector(`.card[data-id="${this.deletingId}"]`);
-    if (card) card.classList.add('removing');
-
-    setTimeout(() => {
-      const id = this.deletingId;
-      AnimeDB.delete(id);
+    const entry = AnimeDB.getById(id);
+    if (!entry) {
       this.deletingId = null;
       this.closeModal(this.deleteModal);
-      // 显示带撤销的 Toast
-      showUndoToast(
-        id,
-        (undoId) => this.handleUndoDelete(undoId),
-        (expiredId) => { delete this.pendingDeletes[expiredId]; }
-      );
-      this.render();
-    }, 250);
+      return;
+    }
+
+    // 保存完整数据用于可能的撤销
+    this.pendingDeletes[id] = { ...entry };
+
+    const card = this.listContainer.querySelector(`.card[data-id="${id}"]`);
+    if (!card) {
+      this.finishDelete(id);
+      return;
+    }
+
+    // 卡片淡出动画结束后再真正删除；用 animationend + 兜底定时器，避免固定延时竞态
+    card.classList.add('removing');
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      card.removeEventListener('animationend', finish);
+      this.finishDelete(id);
+    };
+    card.addEventListener('animationend', finish);
+    // 兜底：动画未触发（如 reduced-motion 被拦截）也能完成删除
+    setTimeout(finish, 400);
+  }
+
+  finishDelete(id) {
+    if (this.deletingId !== id) return;
+    this.deletingId = null;
+    AnimeDB.delete(id);
+    this.closeModal(this.deleteModal);
+    // 显示带撤销的 Toast
+    showUndoToast(
+      id,
+      (undoId) => this.handleUndoDelete(undoId),
+      (expiredId) => { delete this.pendingDeletes[expiredId]; }
+    );
+    this.render();
   }
 
   /** 撤销删除 */
@@ -592,7 +562,7 @@ class AniListApp {
 
   renderStats() {
     const stats = AnimeDB.getStats();
-    const statMap = { all: 'statAll', watching: 'statWatching', want_to_watch: 'statWant', completed: 'statCompleted' };
+    const statMap = { watching: 'statWatching', want_to_watch: 'statWant', completed: 'statCompleted' };
 
     for (const [key, id] of Object.entries(statMap)) {
       const el = this.$(id);
@@ -607,31 +577,27 @@ class AniListApp {
     }
 
     // 高亮当前筛选
-    const activeStatus = this.currentStatus === 'all' ? 'all' : this.currentStatus;
     this.statsBar.querySelectorAll('.stat-item').forEach((el) => {
-      el.classList.toggle('active', el.dataset.status === activeStatus);
+      el.classList.toggle('active', el.dataset.status === this.currentStatus);
     });
   }
 
   createCard(entry, index) {
-    const stars = '★'.repeat(entry.rating) + '☆'.repeat(5 - entry.rating);
     const notesHtml = entry.notes
       ? `<div class="card-notes">${this.escapeHtml(entry.notes)}</div>`
       : '';
 
     const typeIcon = TYPE_ICONS[entry.type] || 'film';
-    const typeColors = { anime: '#f472b6', drama: '#60a5fa', movie: '#f59e0b' };
-    const typeColor = typeColors[entry.type] || '#a855f7';
 
     return `
       <div class="card" data-id="${entry.id}" style="animation-delay: ${index * 0.04}s">
         <div class="card-header">
-          <div class="card-type-badge" style="background: ${typeColor}18; color: ${typeColor}">
+          <div class="card-type-badge" data-type="${entry.type}">
             <i class="fa-solid fa-${typeIcon}"></i>
             <span class="card-type-badge-text">${TYPE_LABELS[entry.type] || entry.type}</span>
           </div>
           <div class="card-title">${this.escapeHtml(entry.title)}</div>
-          <button class="card-delete-btn header-btn" title="删除" style="flex-shrink:0">
+          <button class="card-delete-btn header-btn" title="删除">
             <i class="fa-regular fa-trash-can"></i>
           </button>
         </div>
@@ -642,11 +608,6 @@ class AniListApp {
         </div>
         ${notesHtml}
         <div class="card-footer">
-          <div class="card-rating">
-            ${Array.from({ length: 5 }, (_, i) =>
-              `<span class="${i < entry.rating ? 'star-filled' : ''}">${i < entry.rating ? '★' : '☆'}</span>`
-            ).join('')}
-          </div>
           <span class="card-date"><i class="fa-regular fa-calendar"></i> ${formatDate(entry.createdAt)}</span>
         </div>
       </div>

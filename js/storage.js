@@ -20,9 +20,10 @@ class AnimeDB {
   /** 同步状态回调 */
   static _syncListeners = [];
   static _syncStatus = 'local';
-  static _undoPushTimer = null;
   static _pushQueue = Promise.resolve();
   static _pendingPush = null;
+  /** 数据变更回调（回滚后通知界面刷新） */
+  static _changeListeners = [];
 
   // ===== 初始化：从 GitHub 拉取最新数据 =====
   static async init(repoOverride) {
@@ -152,7 +153,7 @@ class AnimeDB {
   // ===== 写入 =====
   static add({ title, type = 'anime', status = 'want_to_watch', rating = 0, notes = '' }) {
     this._ensureLoaded();
-    const normalizedTitle = String(title ?? '');
+    const normalizedTitle = String(title ?? '').trim();
     this._assertUniqueTitle(normalizedTitle, type);
     const entry = {
       id: this._genId(),
@@ -160,11 +161,14 @@ class AnimeDB {
       type,
       status,
       rating: Math.min(5, Math.max(0, Number(rating) || 0)),
-      notes: notes.trim(),
+      notes: String(notes ?? '').trim(),
       createdAt: new Date().toISOString(),
     };
     this._cache.push(entry);
-    this._pushAfterChange();
+    this._pushWithRollback(() => {
+      const i = this._cache.indexOf(entry);
+      if (i !== -1) this._cache.splice(i, 1);
+    });
     return entry;
   }
 
@@ -173,30 +177,35 @@ class AnimeDB {
     const idx = this._cache.findIndex(e => e.id === id);
     if (idx === -1) return null;
     const entry = this._cache[idx];
-    const nextTitle = 'title' in updates ? String(updates.title ?? '') : entry.title;
+    const snapshot = { ...entry };
+    const nextTitle = 'title' in updates ? String(updates.title ?? '').trim() : entry.title;
     const nextType = 'type' in updates ? updates.type : entry.type;
     this._assertUniqueTitle(nextTitle, nextType, id);
     const allowed = ['title', 'type', 'status', 'rating', 'notes'];
     for (const key of allowed) {
       if (key in updates) {
         let val = updates[key];
-        if (key === 'title') val = String(val ?? '');
+        if (key === 'title') val = String(val ?? '').trim();
         if (key === 'rating') val = Math.min(5, Math.max(0, Number(val) || 0));
         if (key === 'notes') val = String(val).trim();
-        this._cache[idx][key] = val;
+        entry[key] = val;
       }
     }
-    this._pushAfterChange();
-    return this._cache[idx];
+    this._pushWithRollback(() => {
+      const cur = this._cache.findIndex(e => e.id === id);
+      if (cur !== -1) this._cache[cur] = snapshot;
+    });
+    return entry;
   }
 
   static delete(id) {
     this._ensureLoaded();
     const idx = this._cache.findIndex(e => e.id === id);
     if (idx === -1) return false;
-    this._cache.splice(idx, 1);
-    this._enqueuePush(false).catch(() => {});  // 立即推，显示结果
-    this.scheduleUndoPush();   // 5 分钟后二次确认
+    const [removed] = this._cache.splice(idx, 1);
+    this._pushWithRollback(() => {
+      this._cache.splice(Math.min(idx, this._cache.length), 0, removed);
+    });
     return true;
   }
 
@@ -205,8 +214,10 @@ class AnimeDB {
     if (!entry || !entry.id) return null;
     if (this._cache.some(e => e.id === entry.id)) return entry;
     this._cache.push(entry);
-    this.cancelUndoPush();
-    this._enqueuePush(false).catch(() => {});
+    this._pushWithRollback(() => {
+      const i = this._cache.indexOf(entry);
+      if (i !== -1) this._cache.splice(i, 1);
+    });
     return entry;
   }
 
@@ -217,9 +228,15 @@ class AnimeDB {
     await this._enqueuePush(false);
   }
 
-  static _pushAfterChange() {
-    // 不静默——push 失败要告知用户，否则刷新数据就丢了
-    this._enqueuePush(false).catch(() => {});
+  /**
+   * 乐观写入：先改本地缓存，再推送云端。
+   * 推送失败时执行回滚并通知界面刷新，保证内存状态与服务器一致，避免刷新后数据丢失。
+   */
+  static _pushWithRollback(rollback) {
+    this._enqueuePush(false).catch(() => {
+      rollback();
+      this._emitChange();
+    });
   }
 
   /**
@@ -254,7 +271,9 @@ class AnimeDB {
         showToast('⚠️ 未配置 Token，点右上角 GitHub 图标配置', 'error');
       }
       this._setStatus('error');
-      return;
+      const err = new Error('未配置 GitHub Token');
+      err.code = 'NO_TOKEN';
+      throw err;
     }
 
     const [owner, name] = cfg.repo.split('/');
@@ -341,19 +360,6 @@ class AnimeDB {
     throw lastErr || new Error('同步失败');
   }
 
-  // ===== 撤销定时器 =====
-  static scheduleUndoPush() {
-    this.cancelUndoPush();
-    this._undoPushTimer = setTimeout(() => {
-      this._undoPushTimer = null;
-      this._enqueuePush(true).catch(() => {});
-    }, 5 * 60 * 1000);
-  }
-
-  static cancelUndoPush() {
-    if (this._undoPushTimer) { clearTimeout(this._undoPushTimer); this._undoPushTimer = null; }
-  }
-
   // ===== 工具 =====
   static _assertUniqueTitle(title, type, excludedId = null) {
     const comparableTitle = String(title).replace(/\s/g, '');
@@ -385,5 +391,13 @@ class AnimeDB {
   }
   static _notify() {
     this._syncListeners.forEach(fn => { try { fn(this._syncStatus); } catch {} });
+  }
+
+  static onChange(fn) {
+    this._changeListeners.push(fn);
+    return () => { this._changeListeners = this._changeListeners.filter(f => f !== fn); };
+  }
+  static _emitChange() {
+    this._changeListeners.forEach(fn => { try { fn(); } catch {} });
   }
 }

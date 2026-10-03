@@ -139,7 +139,6 @@ test('new entries and restored deletions are appended after existing entries', (
   const { AnimeDB } = loadAnimeDB();
   AnimeDB._loaded = true;
   AnimeDB._cache = [{ id: 'existing', title: 'Existing entry' }];
-  AnimeDB._pushAfterChange = () => {};
   AnimeDB._enqueuePush = () => Promise.resolve();
 
   const added = AnimeDB.add({ title: 'New entry' });
@@ -158,7 +157,7 @@ test('titles are unique across statuses for the same type when spaces differ', (
   const { AnimeDB } = loadAnimeDB();
   AnimeDB._loaded = true;
   AnimeDB._cache = [];
-  AnimeDB._pushAfterChange = () => {};
+  AnimeDB._enqueuePush = () => Promise.resolve();
 
   const first = AnimeDB.add({ title: 'A  Title', status: 'want_to_watch' });
   const differentTitle = AnimeDB.add({ title: 'Another Title', status: 'want_to_watch' });
