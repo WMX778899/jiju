@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-01T12:24:56.758Z",
+  "updatedAt": "2026-10-05T06:10:37.533Z",
   "entries": [
     {
       "id": "mslcnjhsw5476c",
@@ -316,6 +316,15 @@
       "rating": 0,
       "notes": "",
       "createdAt": "2026-09-21T06:56:48.722Z"
+    },
+    {
+      "id": "muuupd7yqxz89a",
+      "title": "一斩苍穹",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-10-05T06:10:37.487Z"
     }
   ]
 }
