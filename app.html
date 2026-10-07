@@ -6,8 +6,13 @@
   <title>AniList 追番清单</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=Zen+Dots&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Google Fonts 异步加载（media=print 交换法）：该域国内访问不稳定，
+       绝不能阻塞首屏渲染——系统字体栈先兜底，字体就绪后自动换装 -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=Zen+Dots&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=Zen+Dots&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=Zen+Dots&display=swap"></noscript>
+  <!-- Font Awesome 本地自托管：cdnjs 实测阻塞 1.4~12s，渲染阻塞资源必须同源 -->
+  <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
   <link rel="stylesheet" href="css/style.css?v=13">
 </head>
 <body>
