@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>AniList · 入口</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -10,7 +10,7 @@
   <!-- 只预加载首屏背景图，避免 5 张大图抢占首屏带宽 -->
   <link rel="preload" as="image" href="images/bg1.jpg" fetchpriority="high">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css?v=4">
+  <link rel="stylesheet" href="css/style.css?v=13">
   <style>
     body { margin: 0; overflow: hidden; background: #0b0a12; }
     #bgCanvas { position: fixed; inset: 0; z-index: 0; background: #0b0a12; }
@@ -68,6 +68,11 @@
         var originNow = [0.5, 0.5];   // 当前扩展起点：每次切换随机，且与上次不同
         var REVEAL = 4000, INTERVAL = 7000, KB = 22000, BLUR = 16, FEATHER = 0.2;
         var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        // 低功耗设备（触屏/窄窗）：帧率减半。全屏 canvas 逐帧重绘 + 切换期
+        // 整幅模糊是入口页最大的持续功耗源；羽化扩展与 Ken Burns 都很缓慢，
+        // 30fps 肉眼几乎无感，持续功耗近似减半
+        var lowPower = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || window.innerWidth < 768;
+        var frameParity = 0;
 
         var canvas = document.getElementById('bgCanvas');
         var ctx = canvas.getContext('2d');
@@ -229,7 +234,15 @@
           ctx.drawImage(buf, 0, 0);
         }
 
-        function loop(now) { draw(now); requestAnimationFrame(loop); }
+        function loop(now) {
+          // 低功耗设备隔帧绘制（30fps 上限），桌面保持满帧
+          if (lowPower) {
+            frameParity = 1 - frameParity;
+            if (frameParity) { requestAnimationFrame(loop); return; }
+          }
+          draw(now);
+          requestAnimationFrame(loop);
+        }
 
         // 门禁逻辑
         var input = document.getElementById('gatePassword');

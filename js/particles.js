@@ -84,10 +84,14 @@ class ParticleBackground {
   }
 
   bindEvents() {
+    // 移动端地址栏收展/旋转会连续触发 resize，重建粒子有开销，做防抖
     const resizeFn = () => {
-      this.resize();
-      this.initParticles();
-      this.initStars();
+      clearTimeout(this._resizeTimer);
+      this._resizeTimer = setTimeout(() => {
+        this.resize();
+        this.initParticles();
+        this.initStars();
+      }, 150);
     };
     window.addEventListener('resize', resizeFn);
 

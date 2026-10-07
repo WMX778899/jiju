@@ -1,0 +1,7 @@
+# ZCode 工具工作区数据与配置（非网站文件）
+.zcode/
+.zcodeignore
+
+# 系统杂项
+Thumbs.db
+Desktop.ini

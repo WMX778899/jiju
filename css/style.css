@@ -873,22 +873,25 @@ body {
   z-index: 200;
   align-items: flex-end;
   justify-content: center;
-  animation: fadeIn 0.25s ease;
 }
 
 .modal-overlay.open {
   display: flex;
+  /* 背景轻淡入，配合面板「从点击处生长」的展开（app.js expandFrom）。
+     .closing 在其后声明：下拉关闭时 fadeOut 覆盖本动画 */
+  animation: overlayIn 0.28s ease;
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
 }
 
 .modal-overlay.closing {
   animation: fadeOut 0.2s ease forwards;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
+/* 仅保留关闭时的淡出（.closing，移动端下拉关闭用）；
+   打开不做事何动画——点击卡片后弹窗直接显示 */
 @keyframes fadeOut {
   from { opacity: 1; }
   to { opacity: 0; }
@@ -904,7 +907,6 @@ body {
   background: var(--bg-modal);
   border-radius: var(--modal-radius) var(--modal-radius) 0 0;
   padding: 24px 20px 30px;
-  animation: slideUp 0.3s ease;
   box-shadow: var(--shadow-modal);
 }
 
@@ -946,12 +948,6 @@ body {
 }
 
 .modal-sm { max-width: 400px; }
-
-@keyframes slideUp {
-  from { transform: translateY(40px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
 
 .modal-header {
   display: flex;
@@ -1546,9 +1542,14 @@ body {
   animation: gateFadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
+/* 入场位移必须经过 --gate-shift：文件末尾给 .gate-box 加了下移量
+   （transform: translateY(var(--gate-shift))），若关键帧写死
+   translateY(12px)→0，动画运行期会覆盖静态下移——表现为首屏先
+   停在视口正中、0.6s 动画结束瞬间突然掉到最终位置。关键帧同样
+   引用该变量（对动画元素解析），入场全程就在最终位置完成。 */
 @keyframes gateFadeIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(calc(var(--gate-shift, 0px) + 12px)); }
+  to   { opacity: 1; transform: translateY(var(--gate-shift, 0px)); }
 }
 
 /* ---------- 输入框包裹（用于发光定位） ---------- */
@@ -2479,11 +2480,21 @@ body {
    关闭滑动时每帧都要重算的高开销效果，保证列表滑动流畅
    ============================================================ */
 @media (max-width: 599px), (pointer: coarse) {
-  /* backdrop-filter 模糊在移动端滑动时成本极高 */
+  /* backdrop-filter 模糊在移动端滑动时成本极高。
+     这里关闭「内容页」各类表面的模糊（背景透明度保留，仍是玻璃观感）；
+     门禁页的输入框/按钮在其后重新声明了 backdrop-filter，触屏上照旧有玻璃感。 */
   .header-content,
   .sync-status,
   .modal-overlay,
-  .toast {
+  .toast,
+  .card,
+  .filter-bar,
+  .stats-bar,
+  .stat-item,
+  .filter-select,
+  .stat-search,
+  .modal-content,
+  .fab {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
@@ -2493,6 +2504,193 @@ body {
   .header-content::before {
     animation: none;
   }
+}
+
+/* ============================================================
+   内容页（app.html）毛玻璃质感（加深版）
+   ------------------------------------------------------------
+   背景：各表面调得更透（露出 body 的紫色径向光晕），
+        加 1px 白色内描边 + 顶部高光模拟玻璃厚度
+   模糊：见文件末尾的 @supports 段（桌面端启用，移动端由上面的
+        性能块关闭，避免每张卡片一层实时模糊拖慢滑动）
+   可调项：
+     · 透明度 —— 各 linear-gradient / rgba 里的 0.40 / 0.46 / 0.52 等
+     · 模糊强度 —— 文件末尾 @supports 段里的 blur(22px) 等
+     · 想更透就调低透明度、加大 blur；想更实就反过来
+   ============================================================ */
+
+/* 卡片：主内容面 —— 玻璃感最重 */
+.card {
+  background: linear-gradient(145deg, rgba(30, 24, 45, 0.28), rgba(17, 13, 27, 0.34));
+  border-color: rgba(216, 204, 248, 0.3);
+  box-shadow:
+    0 18px 50px rgba(3, 1, 8, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.card:hover {
+  background: linear-gradient(145deg, rgba(42, 34, 62, 0.4), rgba(28, 22, 44, 0.46));
+  border-color: rgba(196, 181, 253, 0.56);
+}
+
+/* 顶部标题栏：悬浮玻璃条 */
+.header-content {
+  background: rgba(24, 18, 36, 0.34);
+  border-color: rgba(216, 204, 248, 0.32);
+  box-shadow:
+    0 16px 38px rgba(3, 1, 8, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.19),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* 筛选条 / 统计条：玻璃薄片 */
+.filter-bar,
+.stats-bar {
+  background: rgba(24, 18, 36, 0.28);
+  border-color: rgba(216, 204, 248, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.11),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* 统计项 / 筛选下拉 / 搜索框本身：再薄一层 */
+.stat-item,
+.filter-select,
+.stat-search {
+  background: linear-gradient(180deg, rgba(196, 181, 253, 0.17), rgba(196, 181, 253, 0.06));
+  border-color: rgba(216, 204, 248, 0.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.stat-item:hover,
+.stat-item.active {
+  background: linear-gradient(180deg, rgba(196, 181, 253, 0.26), rgba(196, 181, 253, 0.12));
+}
+
+.filter-select option {
+  background: #191329;   /* 原生下拉列表不支持模糊，保持不透明 */
+}
+
+/* 弹窗 / 提示条 / 同步状态：玻璃面板 */
+.modal-content {
+  background: rgba(27, 20, 44, 0.38);
+  border-color: rgba(216, 204, 248, 0.32);
+  box-shadow:
+    var(--shadow-modal),
+    inset 0 1px 0 rgba(255, 255, 255, 0.19),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.toast,
+.sync-status {
+  background: rgba(24, 18, 36, 0.38);
+  border-color: rgba(216, 204, 248, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13);
+}
+
+/* ============================================================
+   柔光（soft glow）
+   ------------------------------------------------------------
+   三层叠出柔和光感，都不影响文字与布局：
+     ① 内发光 —— 大半径 inset 淡紫光，让玻璃边缘像被光晕住
+     ② 外扩散光 —— 大模糊半径、低透明度的外阴影，形成弥散光雾
+     ③ 背景光斑 —— 强化 body 径向光晕 + 底部一团淡紫，做出环境光
+   暗色背景下柔光靠半径大、透明度低才自然，所以 blur 都很大
+   可调项：各 rgba(...) 的第三、四位（透明度）
+          想更亮就把 0.1 调到 0.16，想收一点就降到 0.06
+   ============================================================ */
+
+/* ③ 背景环境光：顶部淡紫光晕 + 底部一团更柔的散射光 */
+body {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(167, 139, 250, 0.16), transparent 34rem),
+    radial-gradient(circle at 50% 100%, rgba(196, 181, 253, 0.09), transparent 40rem),
+    var(--bg-primary);
+}
+
+/* 顶部光斑再加一层，形成由上到下的光感过渡 */
+.app-container::before {
+  background:
+    radial-gradient(ellipse, rgba(196, 181, 253, 0.16), transparent 70%),
+    radial-gradient(ellipse at 50% 100%, rgba(167, 139, 250, 0.08), transparent 75%);
+}
+
+/* ① + ② 卡片：内发光 + 外扩散光 */
+.card {
+  box-shadow:
+    0 20px 60px rgba(3, 1, 8, 0.42),
+    0 0 48px rgba(167, 139, 250, 0.13),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 40px rgba(196, 181, 253, 0.10);
+}
+
+.card:hover {
+  box-shadow:
+    0 22px 62px rgba(3, 1, 8, 0.44),
+    0 0 62px rgba(167, 139, 250, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 0 48px rgba(196, 181, 253, 0.14);
+}
+
+/* 标题栏 / 筛选条 / 统计条：内发光 + 柔和外光 */
+.header-content {
+  box-shadow:
+    0 16px 40px rgba(3, 1, 8, 0.34),
+    0 0 56px rgba(167, 139, 250, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.19),
+    inset 0 0 32px rgba(196, 181, 253, 0.08);
+}
+
+.filter-bar,
+.stats-bar {
+  box-shadow:
+    0 0 36px rgba(167, 139, 250, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.11),
+    inset 0 0 26px rgba(196, 181, 253, 0.06);
+}
+
+/* 细件：轻内发光 */
+.stat-item,
+.filter-select,
+.stat-search {
+  box-shadow:
+    0 0 24px rgba(167, 139, 250, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 20px rgba(196, 181, 253, 0.07);
+}
+
+.stat-item.active {
+  box-shadow:
+    0 0 30px rgba(167, 139, 250, 0.16),
+    inset 0 0 0 1px rgba(196, 181, 253, 0.28),
+    inset 0 0 22px rgba(196, 181, 253, 0.1);
+}
+
+/* 弹窗 / 提示条：更明显的弥散光 */
+.modal-content {
+  box-shadow:
+    var(--shadow-modal),
+    0 0 70px rgba(167, 139, 250, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.19),
+    inset 0 0 44px rgba(196, 181, 253, 0.1);
+}
+
+.toast,
+.sync-status {
+  box-shadow:
+    0 0 30px rgba(167, 139, 250, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.13),
+    inset 0 0 20px rgba(196, 181, 253, 0.08);
+}
+
+/* FAB：自身光晕 */
+.fab {
+  box-shadow:
+    0 12px 28px rgba(167, 139, 250, 0.28),
+    0 0 40px rgba(196, 181, 253, 0.22);
 }
 
 /* ============================================================
@@ -2536,5 +2734,471 @@ body {
 .gate-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* ============================================================
+   移动端触屏适配增强
+   点按反馈 / 粘滞 hover 复位 / 触摸目标 / 刘海屏安全区 /
+   底部弹窗下拉关闭手势的配套样式
+   ============================================================ */
+
+/* 点按反馈交给 :active，去掉系统默认的灰色高亮块；
+   touch-action: manipulation 消除双击缩放与点按延迟 */
+.card, .stat-item, .header-btn, .card-delete-btn, .fab,
+.btn, .modal-close, .undo-btn, .gate-btn, .gate-input,
+.filter-select, .form-select, .form-input, .form-textarea, .stat-search {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* 触屏没有真正的悬停：tap 后残留的 :hover 态会"粘"在元素上，
+   这里把最明显的高亮/位移复位回静态外观 */
+@media (hover: none) {
+  .card:hover {
+    transform: none;
+    background: linear-gradient(145deg, rgba(30, 24, 45, 0.94), rgba(17, 13, 27, 0.94));
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-card);
+  }
+  .card:hover::before { opacity: 0; animation: none; }
+  .card:hover::after { opacity: 0.7; animation: none; background: linear-gradient(180deg, rgba(196, 181, 253, 0.9), rgba(196, 181, 253, 0.08)); }
+  .card:hover .card-type-badge { transform: none; }
+  .card:hover .card-delete-btn { opacity: 0.55; }
+  .stat-item:hover { background: var(--bg-secondary); box-shadow: none; }
+  .header-content:hover .header-icon { transform: none; }
+  .empty-state:hover .empty-icon { transform: none; }
+  .fab:hover, .btn-submit:hover, .btn-danger:hover,
+  .gate-btn:hover, .undo-btn:hover, .modal-close:hover,
+  .header-btn:hover { transform: none; }
+}
+
+/* 触摸目标加大到约 44px；搜索框字号提到 16px，
+   避免 iOS Safari 聚焦小字号输入框时整页自动放大 */
+@media (max-width: 599px), (pointer: coarse) {
+  .header-btn, .card-delete-btn { width: 42px; height: 42px; }
+  .modal-close { width: 42px; height: 42px; border-radius: 12px; }
+
+  .filter-select { min-height: 44px; }
+
+  .search-row .stat-search { min-height: 44px; font-size: 16px; padding-left: 36px; }
+  .search-row .stat-search::placeholder { font-size: 13px; }
+  .search-row .stat-search-wrap i { left: 12px; font-size: 13px; }
+
+  .undo-btn { padding: 8px 16px; }
+}
+
+/* 手机上其余弹窗（删除确认 / GitHub 配置）也随键盘收缩，dvh 代替 vh */
+@media (max-width: 599px) {
+  .modal-content { max-height: min(90dvh, 720px); }
+
+  /* 表单 / GitHub 弹窗：标题栏吸顶并成为下拉关闭的拖拽区，顶部加抓手 */
+  #formModal .modal-content { padding-top: 4px; }
+
+  #formModal .modal-header,
+  #githubModal .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg-modal);
+    padding-top: 14px;
+    touch-action: none;
+  }
+
+  #formModal .modal-header::before,
+  #githubModal .modal-header::before {
+    content: '';
+    position: absolute;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 44px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(188, 170, 224, 0.3);
+    pointer-events: none;
+  }
+
+  #formModal .modal-content,
+  #githubModal .modal-content {
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  #formModal .modal-content.sheet-dragging,
+  #githubModal .modal-content.sheet-dragging {
+    transition: none;
+  }
+}
+
+/* 刘海屏：viewport-fit=cover 后用安全区变量兜底
+   （FAB / 容器留白随刘海与底部横条自动加大，同时恢复各断点本来的设计间距） */
+@supports (padding: max(0px)) {
+  .app-container { padding-top: max(28px, env(safe-area-inset-top, 0px)); }
+
+  @media (max-width: 599px) {
+    .app-container { padding-top: max(14px, env(safe-area-inset-top, 0px)); }
+    .fab {
+      bottom: max(18px, env(safe-area-inset-bottom, 18px));
+      right: max(18px, env(safe-area-inset-right, 18px));
+    }
+    .gate-wrap { padding-bottom: max(44px, env(safe-area-inset-bottom, 44px)); }
+  }
+
+  @media (max-width: 399px) {
+    .fab {
+      bottom: max(16px, env(safe-area-inset-bottom, 16px));
+      right: max(16px, env(safe-area-inset-right, 16px));
+    }
+  }
+
+  @media (min-width: 600px) {
+    .fab {
+      bottom: max(28px, env(safe-area-inset-bottom, 28px));
+      right: max(28px, env(safe-area-inset-right, 28px));
+    }
+  }
+
+  @media (min-width: 960px) {
+    .fab {
+      bottom: max(32px, env(safe-area-inset-bottom, 32px));
+      right: max(32px, env(safe-area-inset-right, 32px));
+    }
+  }
+}
+
+/* ============================================================
+   密码门禁：输入框及其文字在页面正中（水平居中，垂直略低于正中）
+   （必须放在文件末尾——上方 "quiet night workspace" 主题把门禁
+   改成了左下角、左对齐布局，这里把它改回屏幕中间）
+   想微调垂直位置：改下面 --gate-shift 的 150px；150px = 输入框中心
+   在视口约 61% 高度处，50px = 正好在视口正中心。
+   ============================================================ */
+.gate-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+}
+
+.gate-box {
+  width: 100%;
+  min-width: 0;
+  max-width: 340px;
+  margin: 0;
+  padding: 0 20px;
+  text-align: center;
+}
+
+/* 垂直位置：整块向下平移，决定输入框在页面上的高低。
+   内容块（上方标签 + 输入框 + 按钮 + 下方副标题）实测高约 250px；
+   要保证下方副标题不被视口裁掉，平移量需 ≤ (视口高 - 250px) / 2，
+   所以按视口高度分档给不同平移量（见文件末尾的 @media (max-height) 组），
+   高屏靠下、矮屏自动收敛。想固定位置就直接写像素，例如 --gate-shift: 300px，
+   但固定值在矮窗口（如 720p 笔记本）会把副标题裁掉。
+   下移量存进变量而非直接写 transform：入场动画 gateFadeIn 的关键帧
+   也要引用它（见上方 keyframes），否则动画运行期会盖掉下移、
+   结束后瞬间跳位。 */
+.gate-box {
+  --gate-shift: 150px;
+  transform: translateY(var(--gate-shift));
+}
+
+/* 恢复主题里的两条装饰文案（原为左下角布局设计：
+   上方 'ANILIST / PRIVATE COLLECTION'、下方副标题），
+   这里只把它改成居中/居中对齐，文字内容仍由主题的
+   .gate-box::before / ::after 提供，不重复写文案 */
+.gate-box::before,
+.gate-box::after {
+  width: 100%;
+  max-width: none;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 上方标签：居中后与原设计一样浮在输入框上方 */
+.gate-box::before {
+  margin-bottom: 14px;
+  letter-spacing: 2.4px;
+}
+
+/* 下方副标题：居中并保持在按钮下方 */
+.gate-box::after {
+  margin-top: 16px;
+  line-height: 1.7;
+}
+
+/* 输入框本体与框内文字（placeholder + 已输入内容）全部居中 */
+.gate-input {
+  text-align: center;
+  text-indent: 0;
+  padding: 16px 20px;
+  font-size: 18px;
+  letter-spacing: 4px;
+  border-radius: 16px;
+}
+
+/* letter-spacing 会在最后一个字符后多留一个字距，
+   让占位文字/输入内容在框内偏移，text-indent 补回一半 */
+.gate-input::placeholder {
+  text-indent: 2px;
+}
+
+.gate-input:focus {
+  text-align: center;
+  transform: none;
+}
+
+/* 错误提示与按钮跟随输入框一起居中 */
+.gate-error {
+  text-align: center;
+}
+
+.gate-btn {
+  /* flex + auto 左右外边距：按钮在被居中容器里保持自身宽度并水平居中；
+     inline-flex 的行盒会多出约 4px 行距，换成 flex 让高度可预期 */
+  display: flex;
+  margin: 18px auto 0;
+}
+
+/* ============================================================
+   磨砂玻璃：输入框与按钮半透明 + 背景模糊
+   ① 先给一层半透明底色兜底（移动端命中性能优化块时
+      backdrop-filter 会被关掉，靠这层底色保证仍是半透明玻璃观感）
+   ② 支持 backdrop-filter 时再叠加真正的背景模糊
+   透明度与模糊强度只需调这两处的数值
+   ============================================================ */
+.gate-input {
+  background: linear-gradient(180deg, rgba(10, 14, 22, 0.54), rgba(10, 14, 22, 0.42));
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.gate-input::placeholder {
+  opacity: 0.78;
+}
+
+.gate-input:focus {
+  background: linear-gradient(180deg, rgba(10, 14, 22, 0.6), rgba(10, 14, 22, 0.48));
+  border-color: rgba(118, 215, 196, 0.72);
+}
+
+/* 按钮恢复原来的紫色（与主题 .gate-btn 同色系：#a855f7 / #c084fc / #e879f9），
+   只是做成半透明玻璃质感，颜色本身不变；文字仍是白色 */
+.gate-btn {
+  background: linear-gradient(135deg,
+    rgba(168, 85, 247, 0.86),
+    rgba(192, 132, 252, 0.78),
+    rgba(232, 121, 249, 0.84),
+    rgba(168, 85, 247, 0.86));
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  box-shadow:
+    0 4px 24px rgba(168, 85, 247, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.gate-btn:hover {
+  background: linear-gradient(135deg,
+    rgba(168, 85, 247, 0.94),
+    rgba(192, 132, 252, 0.88),
+    rgba(232, 121, 249, 0.92),
+    rgba(168, 85, 247, 0.94));
+  box-shadow:
+    0 12px 40px rgba(168, 85, 247, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .gate-input {
+    -webkit-backdrop-filter: blur(10px) saturate(130%);
+    backdrop-filter: blur(10px) saturate(130%);
+  }
+
+  .gate-input:focus {
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(14px) saturate(140%);
+  }
+
+  .gate-btn {
+    -webkit-backdrop-filter: blur(9px) saturate(140%);
+    backdrop-filter: blur(9px) saturate(140%);
+  }
+
+  .gate-btn:hover {
+    -webkit-backdrop-filter: blur(13px) saturate(150%);
+    backdrop-filter: blur(13px) saturate(150%);
+  }
+}
+
+@media (max-width: 480px) {
+  .gate-box {
+    max-width: 320px;
+    padding: 0 18px;
+  }
+}
+
+@media (max-width: 599px) {
+  /* 覆盖上方断点里只为贴底布局准备的 padding-bottom */
+  .gate-wrap {
+    padding: 0;
+  }
+}
+
+/* 按视口高度分档设定下移量：高屏靠下，矮屏收敛，
+   保证「标签 + 输入框 + 按钮 + 副标题」整块约 250px 高度
+   在任何高度下都完整可见（每档都留 5~25px 余量）。
+   上面的基准值是 150px，这里逐档覆盖（只改变量，
+   transform 统一写在 .gate-box 基准规则里）。 */
+@media (min-height: 850px) {
+  .gate-box { --gate-shift: 300px; }
+}
+
+@media (min-height: 780px) and (max-height: 849.98px) {
+  .gate-box { --gate-shift: 260px; }
+}
+
+@media (min-height: 700px) and (max-height: 779.98px) {
+  .gate-box { --gate-shift: 220px; }
+}
+
+@media (min-height: 620px) and (max-height: 699.98px) {
+  .gate-box { --gate-shift: 180px; }
+}
+
+@media (min-height: 560px) and (max-height: 619.98px) {
+  .gate-box { --gate-shift: 150px; }
+}
+
+@media (min-height: 500px) and (max-height: 559.98px) {
+  .gate-box { --gate-shift: 120px; }
+}
+
+@media (max-height: 499.98px) {
+  .gate-box { --gate-shift: 90px; }
+}
+
+/* ============================================================
+   内容页毛玻璃的「背景模糊」部分（放在最后）
+   - 用 @supports 保证不支持 backdrop-filter 的浏览器直接跳过，
+     只保留上面那层半透明背景，不会出现「更透但没有模糊」的糊状观感
+   - 用 not (max-width: 599px) and not (pointer: coarse) 排除移动端与
+     触屏设备（规则位置在性能块之后，必须在这里显式排除，否则会把
+     性能块里的 backdrop-filter: none 覆盖掉）
+   强度可调：卡片 30px / 标题栏 34px / 细件 20px / 弹窗 38px
+   ============================================================ */
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  @media not all and (max-width: 599px) and (pointer: coarse) {
+    .card {
+      -webkit-backdrop-filter: blur(30px) saturate(165%);
+      backdrop-filter: blur(30px) saturate(165%);
+    }
+
+    .header-content {
+      -webkit-backdrop-filter: blur(34px) saturate(170%);
+      backdrop-filter: blur(34px) saturate(170%);
+    }
+
+    .filter-bar,
+    .stats-bar,
+    .toast,
+    .sync-status {
+      -webkit-backdrop-filter: blur(24px) saturate(155%);
+      backdrop-filter: blur(24px) saturate(155%);
+    }
+
+    .stat-item,
+    .filter-select,
+    .stat-search,
+    .fab {
+      -webkit-backdrop-filter: blur(20px) saturate(150%);
+      backdrop-filter: blur(20px) saturate(150%);
+    }
+
+    .modal-content {
+      -webkit-backdrop-filter: blur(38px) saturate(165%);
+      backdrop-filter: blur(38px) saturate(165%);
+    }
+  }
+}
+
+/* ============================================================
+   弹窗「从点击处生长」的点缀元素（配合 app.js 的 expandFrom）
+   ① 触发处绽开的光晕 + 星尘（.bloom-sparks，JS 生成、1s 后自删）
+   ② 展开期间（.modal-overlay.bloom）面板内容按 DOM 顺序
+      错落上浮：透明度 + 轻微位移 + 模糊渐显，延迟由 JS 写入
+   都是一次性动画，结束后不残留任何内联样式
+   ============================================================ */
+.bloom-sparks {
+  position: fixed;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.bloom-glow {
+  position: absolute;
+  left: -110px;
+  top: -110px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.45), rgba(192, 132, 252, 0.16) 45%, transparent 70%);
+  filter: blur(6px);
+  animation: bloomGlow 0.55s ease-out forwards;
+}
+
+@keyframes bloomGlow {
+  from { opacity: 0.9; transform: scale(0.3); }
+  to   { opacity: 0; transform: scale(1.3); }
+}
+
+.bloom-dot {
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: bloomDot 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes bloomDot {
+  from { opacity: 1; transform: translate(0, 0) scale(1); }
+  to   { opacity: 0; transform: translate(var(--bx, 40px), var(--by, -30px)) scale(0.35); }
+}
+
+.modal-overlay.bloom .modal-content > .modal-header,
+.modal-overlay.bloom .modal-content .anime-form > :is(.form-group, .form-row, .form-actions, .github-actions, .github-status),
+.modal-overlay.bloom .modal-content .delete-body {
+  animation: bloomRise 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@keyframes bloomRise {
+  from { opacity: 0; transform: translateY(14px); filter: blur(5px); }
+  to   { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+/* ============================================================
+   移动端动效减负（置于文件末尾：与上方规则同权重，靠源顺序覆盖）
+   ============================================================ */
+@media (max-width: 599px), (pointer: coarse) {
+  /* 编辑态边框流光是无限循环动画，移动端常驻重绘不划算
+     （与上方性能块关停 .header-content::before 等装饰动画同一策略） */
+  .modal-overlay.is-editing .modal-content::before {
+    animation: none;
+  }
+
+  /* 内容错落上浮去掉模糊渐显：filter 动画在弱 GPU 上每帧重新滤镜，
+     是展开爆发里最贵的一项；保留位移 + 透明度后观感几乎不变 */
+  .modal-overlay.bloom .modal-content > .modal-header,
+  .modal-overlay.bloom .modal-content .anime-form > :is(.form-group, .form-row, .form-actions, .github-actions, .github-status),
+  .modal-overlay.bloom .modal-content .delete-body {
+    animation-name: bloomRiseLite;
+  }
+}
+
+@keyframes bloomRiseLite {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 

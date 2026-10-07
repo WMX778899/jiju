@@ -128,10 +128,211 @@ function removeUndoToast(toast, entryId) {
 }
 
 // ============================================================
+// body 滚动锁（iOS Safari 兼容）
+// overflow:hidden 在 iOS 上挡不住背景滚动，
+// 需要把 body 钉在当前位置（position:fixed）才能真正锁住
+// ============================================================
+
+let _scrollLockY = 0;
+let _scrollLockCount = 0;
+
+function lockBodyScroll() {
+  if (_scrollLockCount++ > 0) return;
+  _scrollLockY = window.scrollY;
+  document.body.style.overflow = 'hidden';
+  document.body.style.position = 'fixed';
+  document.body.style.top = -_scrollLockY + 'px';
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+  document.body.style.width = '100%';
+}
+
+function unlockBodyScroll() {
+  if (_scrollLockCount === 0) return;
+  if (--_scrollLockCount > 0) return;
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
+  document.body.style.width = '';
+  window.scrollTo(0, _scrollLockY);
+}
+
+// ============================================================
+// 移动端底部弹窗：按住标题栏（抓手）下拉关闭
+// 从标题栏起拖，避免与表单内容的滚动冲突
+// ============================================================
+
+function enableSheetDismiss(modal, onClose) {
+  const sheet = modal.querySelector('.modal-content');
+  const zone = modal.querySelector('.modal-header');
+  if (!sheet || !zone) return;
+
+  let dragging = false;
+  let startY = 0, startT = 0, lastY = 0, lastT = 0;
+  let dismissTimer = null;
+
+  const reset = () => {
+    dragging = false;
+    sheet.classList.remove('sheet-dragging');
+    sheet.style.transition = '';
+    sheet.style.transform = '';
+  };
+
+  zone.addEventListener('touchstart', (e) => {
+    // 仅小屏（底部弹窗形态）启用，桌面居中弹窗不适用
+    if (window.innerWidth > 599 || e.touches.length !== 1 || dismissTimer) return;
+    dragging = true;
+    startY = lastY = e.touches[0].clientY;
+    startT = lastT = performance.now();
+    sheet.classList.add('sheet-dragging');
+    // 展开""从点击处生长"可能还挂着内联过渡，拖拽必须零延迟跟手
+    sheet.style.transition = 'none';
+  }, { passive: true });
+
+  zone.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const y = e.touches[0].clientY;
+    const dy = y - startY;
+    if (dy > 0) {
+      sheet.style.transform = 'translateY(' + dy + 'px)';
+      if (e.cancelable) e.preventDefault();
+    }
+    lastY = y;
+    lastT = performance.now();
+  }, { passive: false });
+
+  const end = () => {
+    if (!dragging) return;
+    const dy = lastY - startY;
+    const dt = Math.max(lastT - startT, 1);
+    const velocity = dy / dt;   // px/ms
+    if (dy > 120 || (dy > 48 && velocity > 0.55)) {
+      // 先清掉拖拽期的内联 transition:none，恢复样式表过渡再甩到底部关闭；遮罩同步淡出
+      sheet.style.transition = '';
+      sheet.classList.remove('sheet-dragging');
+      sheet.style.transform = 'translateY(100%)';
+      modal.classList.add('closing');
+      dismissTimer = setTimeout(() => {
+        dismissTimer = null;
+        onClose();
+        modal.classList.remove('closing');
+        reset();
+      }, 280);
+    } else {
+      reset();
+    }
+  };
+  zone.addEventListener('touchend', end);
+  zone.addEventListener('touchcancel', () => { if (dragging) reset(); });
+}
+
+// ============================================================
+// 弹窗「从点击处生长」入场：把面板首帧映射到触发元素的矩形，
+// 再过渡回自然位置——点哪张卡片，内容就从哪张卡片放大展开。
+// 调用时机：modal 加上 .open（display 生效）之后、首帧绘制之前。
+// ============================================================
+let expandToken = 0;
+
+// mode: 'origin' —— 面板首帧映射到触发元素矩形再生长回去（编辑卡片/删除/云同步）
+//       'center' —— 原位缩放凝聚 + 淡入（添加番剧：来源只是角落里的小按钮，映射过去没有意义）
+function expandFrom(modal, origin, mode) {
+  mode = mode || 'origin';
+  const content = modal.querySelector('.modal-content');
+  if (!content) return;
+  if (mode !== 'center' && !origin) return;
+  // 减少动态：直接显示，不播展开
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const c = content.getBoundingClientRect();
+  if (!c.width || !c.height) return;
+
+  // 首帧前就位：关掉过渡（防移动端样式表里的 transform 过渡抢先），锁住起始态
+  content.style.transition = 'none';
+  if (mode === 'center') {
+    content.style.transform = 'scale(0.88)';
+    content.style.opacity = '0';
+  } else {
+    const o = origin.getBoundingClientRect();
+    if (!o.width || !o.height) return;
+    // 面板首帧恰好覆盖触发元素；origin 太小（FAB 等控件）时收敛缩放比，避免过度压扁
+    const sx = Math.max(o.width / c.width, 0.35);
+    const sy = Math.max(o.height / c.height, 0.35);
+    const dx = (o.left + o.width / 2) - (c.left + c.width / 2);
+    const dy = (o.top + o.height / 2) - (c.top + c.height / 2);
+    // 触发处绽开光晕与星尘（插在面板之下、遮罩之上，随面板长大被渐渐覆盖）
+    spawnBloomSparks(modal, o);
+    content.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+    content.style.opacity = '0.3';
+  }
+  void content.offsetWidth;
+
+  // 释放到自然位置；origin 模式用过冲曲线（长出时略越终态再柔收），
+  // center 模式用干净缓出（凝聚到位，与「生长」区分开）
+  content.style.transition = mode === 'center'
+    ? 'transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.32s ease'
+    : 'transform 0.45s cubic-bezier(0.34, 1.3, 0.64, 1), opacity 0.3s ease';
+  content.style.transform = '';
+  content.style.opacity = '';
+
+  // 内容错落浮现：.bloom 态让标题栏/字段/按钮按 DOM 顺序依次上浮，延迟逐个写入
+  modal.classList.add('bloom');
+  const parts = content.querySelectorAll(
+    '.modal-header, .anime-form > .form-group, .anime-form > .form-row, ' +
+    '.anime-form > .form-actions, .anime-form > .github-actions, .anime-form > .github-status, .delete-body'
+  );
+  parts.forEach((el, i) => { el.style.animationDelay = (0.1 + i * 0.06).toFixed(2) + 's'; });
+
+  // 结束后清掉内联过渡与错落态，交还样式表；token 防止快速开关时旧定时器清掉新动画
+  const token = ++expandToken;
+  setTimeout(() => {
+    if (token !== expandToken) return;
+    content.style.transition = '';
+    modal.classList.remove('bloom');
+    parts.forEach((el) => { el.style.animationDelay = ''; });
+  }, 950);
+}
+
+// 触发处绽开的光晕 + 数粒星尘向外飞散（颜色取自站内紫色系）
+function spawnBloomSparks(modal, o) {
+  const host = document.createElement('div');
+  host.className = 'bloom-sparks';
+  host.style.left = (o.left + o.width / 2) + 'px';
+  host.style.top = (o.top + o.height / 2) + 'px';
+
+  const glow = document.createElement('div');
+  glow.className = 'bloom-glow';
+  host.appendChild(glow);
+
+  const COLORS = ['#a855f7', '#c084fc', '#e879f9', '#f5f3ff'];
+  for (let i = 0; i < 10; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'bloom-dot';
+    const ang = (Math.PI * 2 * i) / 10 + Math.random() * 0.6;
+    const dist = 44 + Math.random() * 60;
+    const color = COLORS[i % COLORS.length];
+    dot.style.setProperty('--bx', (Math.cos(ang) * dist).toFixed(1) + 'px');
+    dot.style.setProperty('--by', (Math.sin(ang) * dist).toFixed(1) + 'px');
+    dot.style.background = color;
+    dot.style.boxShadow = `0 0 9px 1px ${color}`;
+    dot.style.animationDelay = (Math.random() * 0.1).toFixed(2) + 's';
+    host.appendChild(dot);
+  }
+
+  // 排在面板前面 = 绘制在面板之下，光效从被点元素周围透出
+  if (modal.firstChild) modal.insertBefore(host, modal.firstChild);
+  else modal.appendChild(host);
+  setTimeout(() => host.remove(), 1000);
+}
+
+// ============================================================
 // 鼠标光晕跟随
 // ============================================================
 
 function createGlowCursor() {
+  // 触屏设备没有鼠标跟随：跳过创建，避免 tap 后 300px 光晕停在屏幕上
+  if (!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches)) return;
   const el = document.createElement('div');
   el.id = 'glowCursor';
   document.body.appendChild(el);
@@ -277,10 +478,14 @@ class AniListApp {
   }
 
   bindEvents() {
-    // 全局搜索（按当前模块过滤）
+    // 全局搜索（按当前模块过滤）。
+    // 移动端拼音/手写输入每个键都触发 input，而 render() 会全量重建
+    // 列表并重放所有卡片入场动画——打字时必然掉帧，这里做 180ms 防抖
+    let searchTimer = null;
     this.searchInput.addEventListener('input', (e) => {
       this.searchQuery = e.target.value;
-      this.render();
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => this.render(), 180);
     });
 
     // 筛选
@@ -308,17 +513,24 @@ class AniListApp {
     });
 
     // 浮动按钮 → 打开添加表单
-    this.fabAdd.addEventListener('click', () => this.openForm());
+    this.fabAdd.addEventListener('click', () => this.openForm(null, this.fabAdd));
 
-    // 悬停：随机向左或向右放大旋转 180°，移出时复位
-    this.fabAdd.addEventListener('mouseenter', () => {
-      this.fabAdd.classList.remove('spin-left', 'spin-right');
-      void this.fabAdd.offsetWidth;   // 重置动画，确保每次悬停都重新播放
-      this.fabAdd.classList.add(Math.random() < 0.5 ? 'spin-left' : 'spin-right');
-    });
-    this.fabAdd.addEventListener('mouseleave', () => {
-      this.fabAdd.classList.remove('spin-left', 'spin-right');
-    });
+    // 悬停：随机向左或向右放大旋转 180°，移出时复位。
+    // 仅在支持悬停的指针设备绑定——触屏 tap 也会触发 mouseenter
+    // 但永不触发 mouseleave，按钮会卡在旋转态
+    if (window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      this.fabAdd.addEventListener('mouseenter', () => {
+        this.fabAdd.classList.remove('spin-left', 'spin-right');
+        void this.fabAdd.offsetWidth;   // 重置动画，确保每次悬停都重新播放
+        this.fabAdd.classList.add(Math.random() < 0.5 ? 'spin-left' : 'spin-right');
+      });
+      this.fabAdd.addEventListener('mouseleave', () => {
+        this.fabAdd.classList.remove('spin-left', 'spin-right');
+      });
+    }
+
+    // 移动端：表单弹窗支持从标题栏下拉关闭
+    enableSheetDismiss(this.formModal, () => this.closeModal(this.formModal));
 
     // 表单提交
     this.animeForm.addEventListener('submit', (e) => {
@@ -355,10 +567,10 @@ class AniListApp {
   }
 
   // ===== 打开表单 =====
-  openForm(entry = null) {
+  openForm(entry = null, origin = null) {
     this.formModal.classList.add('open');
     this.formModal.classList.toggle('is-editing', Boolean(entry));
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll();
 
     if (entry) {
       // 编辑模式
@@ -379,7 +591,8 @@ class AniListApp {
       this.formId.value = '';
     }
 
-    // 聚焦名称输入
+    // 编辑：从被点卡片「生长」；添加：原位「凝聚」淡入（另一种入场），随后聚焦名称输入
+    expandFrom(this.formModal, origin, entry ? 'origin' : 'center');
     setTimeout(() => this.formTitle.focus(), 100);
   }
 
@@ -387,7 +600,7 @@ class AniListApp {
   closeModal(el) {
     el.classList.remove('open');
     if (el === this.formModal) el.classList.remove('is-editing');
-    document.body.style.overflow = '';
+    unlockBodyScroll();
   }
 
   // ===== 表单提交 =====
@@ -431,13 +644,14 @@ class AniListApp {
   }
 
   // ===== 删除确认 =====
-  confirmDelete(id) {
+  confirmDelete(id, origin = null) {
     const entry = AnimeDB.getById(id);
     if (!entry) return;
     this.deletingId = id;
     this.deleteTitle.textContent = `「${entry.title}」`;
     this.deleteModal.classList.add('open');
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll();
+    expandFrom(this.deleteModal, origin);
   }
 
   handleDelete() {
@@ -546,7 +760,7 @@ class AniListApp {
         if (e.target.closest('.card-delete-btn')) return;
         const id = card.dataset.id;
         const entry = AnimeDB.getById(id);
-        if (entry) this.openForm(entry);
+        if (entry) this.openForm(entry, card);
       });
 
       // 删除按钮
@@ -554,7 +768,7 @@ class AniListApp {
       if (deleteBtn) {
         deleteBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          this.confirmDelete(card.dataset.id);
+          this.confirmDelete(card.dataset.id, card);
         });
       }
     });
@@ -692,7 +906,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('githubRepo').value = c ? (c.repo || '') : (defaultRepo || '');
       document.getElementById('githubToken').type = 'password';
       githubModal.classList.add('open');
-      document.body.style.overflow = 'hidden';
+      lockBodyScroll();
+      expandFrom(githubModal, githubBtn);
       // 重置 Token 密码门禁状态
       var rGate = document.getElementById('tokenRevealGate');
       var rBtn = document.getElementById('tokenRevealBtn');
@@ -712,7 +927,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         titleEl.innerHTML = titleEl.dataset.origTitle;
       }
       githubModal.classList.remove('open');
-      document.body.style.overflow = '';
+      unlockBodyScroll();
     };
 
     githubBtn.addEventListener('click', openGithubModal);
@@ -721,6 +936,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     githubModal.addEventListener('click', (e) => {
       if (e.target === githubModal) closeGithubModal();
     });
+
+    // 移动端：GitHub 配置弹窗支持从标题栏下拉关闭
+    enableSheetDismiss(githubModal, closeGithubModal);
 
     // 上传到云端
     githubPushBtn.addEventListener('click', async () => {
@@ -791,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.key === 'Escape') {
       const modals = document.querySelectorAll('.modal-overlay.open');
       modals.forEach(m => m.classList.remove('open'));
-      document.body.style.overflow = '';
+      unlockBodyScroll();
     }
   });
 });
