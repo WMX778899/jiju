@@ -3202,3 +3202,661 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ============================================================
+   筛选下拉动效（全部类型 / 全部状态 / 默认排序）
+   ------------------------------------------------------------
+   原生 <select class="filter-select"> 仍保留在 DOM 里作为唯一数据源
+   （value / change 事件契约不变），但视觉上被 .fd-native 隐藏，
+   改由 .fd-trigger 按钮 + .fd-panel 面板呈现（js/filter-dropdown.js）。
+
+   面板挂在 document.body 上用 position:fixed 定位：
+   .filter-bar 带 backdrop-filter，会成为 fixed 后代的包含块，
+   放在它内部会让 left/top 基准错位，也可能被祖先 overflow 裁掉。
+
+   可调项：
+     · 动画时长 —— 各 transition 的秒数、fdOptionIn 的 0.34s
+     · 光晕强度 —— 各 rgba(...) 的透明度
+     · 选项错落间隔 —— calc(var(--fd-i) * 34ms)
+   ============================================================ */
+
+/* 原生 select 退居幕后：保留可编程性，但不再占位、不可交互 */
+.filter-select.fd-native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.filter-select-wrapper { position: relative; }
+
+.fd { position: relative; }
+
+/* ---------- 触发按钮 ---------- */
+.fd-trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 38px;
+  padding: 9px 30px 9px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(216, 204, 248, 0.3);
+  background: linear-gradient(180deg, rgba(196, 181, 253, 0.17), rgba(196, 181, 253, 0.06));
+  color: var(--text-secondary);
+  font-family: var(--font-main);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  box-shadow:
+    0 0 24px rgba(167, 139, 250, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 20px rgba(196, 181, 253, 0.07);
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1),
+    border-color 0.22s ease,
+    color 0.22s ease,
+    background 0.28s ease,
+    box-shadow 0.3s ease;
+}
+
+/* 悬停光斑：跟随指针（JS 写入 --fd-mx / --fd-my） */
+.fd-trigger::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    120px circle at var(--fd-mx, 50%) var(--fd-my, 50%),
+    rgba(221, 214, 254, 0.22),
+    transparent 72%
+  );
+  opacity: 0;
+  transition: opacity 0.28s ease;
+  pointer-events: none;
+}
+
+/* 悬停掠过的高光条 */
+.fd-trigger::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(221, 214, 254, 0.24), transparent);
+  transform: skewX(-18deg);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.fd-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: color 0.24s ease, transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.fd-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transform-origin: 50% 0%;
+}
+
+.fd-chevron {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  margin-top: -6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  transition: transform 0.34s cubic-bezier(0.34, 1.4, 0.64, 1), color 0.24s ease;
+}
+
+/* 已筛选标记：选到非默认项时亮起的小圆点 */
+.fd-dot {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(196, 181, 253, 0.9);
+  opacity: 0;
+  transform: scale(0.2);
+  transition: opacity 0.24s ease, transform 0.3s cubic-bezier(0.34, 1.5, 0.64, 1);
+}
+
+.fd.fd-custom .fd-dot {
+  opacity: 1;
+  transform: scale(1);
+  animation: fdDotPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes fdDotPulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(196, 181, 253, 0.6); }
+  50% { box-shadow: 0 0 12px rgba(196, 181, 253, 1); }
+}
+
+/* 展开态 */
+.fd.fd-active .fd-trigger {
+  color: var(--text-primary);
+  border-color: rgba(196, 181, 253, 0.72);
+  background: linear-gradient(180deg, rgba(196, 181, 253, 0.26), rgba(196, 181, 253, 0.12));
+  box-shadow:
+    0 0 0 3px rgba(196, 181, 253, 0.13),
+    0 0 30px rgba(167, 139, 250, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.fd.fd-active .fd-trigger::before { opacity: 1; }
+.fd.fd-active .fd-chevron { transform: rotate(180deg); color: var(--accent-hover); }
+.fd.fd-active .fd-icon { color: var(--accent); transform: scale(1.1); }
+
+/* 文字切换：翻转淡入 */
+.fd-label.fd-flip {
+  animation: fdLabelFlip 0.44s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes fdLabelFlip {
+  from { opacity: 0; transform: translateY(9px) rotateX(42deg); filter: blur(2px); }
+  to   { opacity: 1; transform: translateY(0) rotateX(0deg); filter: blur(0); }
+}
+
+/* 点按波纹 */
+.fd-ripple {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(221, 214, 254, 0.55), rgba(196, 181, 253, 0.12) 60%, transparent 72%);
+  pointer-events: none;
+  animation: fdRipple 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes fdRipple {
+  from { opacity: 0.8; transform: scale(1); }
+  to   { opacity: 0; transform: scale(14); }
+}
+
+/* ---------- 下拉面板 ---------- */
+.fd-panel {
+  position: fixed;
+  /* 低于 .modal-overlay(200)：弹窗是整屏遮罩，层级必须压过下拉面板；
+     高于卡片与 FAB(100)，保证面板浮在内容之上 */
+  z-index: 150;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(216, 204, 248, 0.32);
+  background: linear-gradient(160deg, rgba(32, 25, 50, 0.96), rgba(18, 13, 30, 0.97));
+  box-shadow:
+    0 22px 60px rgba(3, 1, 8, 0.6),
+    0 0 46px rgba(167, 139, 250, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+  overflow: hidden;
+  isolation: isolate;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px) scale(0.96);
+  transition: opacity 0.17s ease, transform 0.2s ease, visibility 0s linear 0.2s;
+}
+
+/* 面板内的指针光斑 */
+.fd-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    170px circle at var(--fd-mx, 50%) var(--fd-my, 0%),
+    rgba(196, 181, 253, 0.16),
+    transparent 72%
+  );
+  opacity: 0;
+  transition: opacity 0.26s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 上方翻转时反向入场 */
+.fd-panel.fd-above { transform: translateY(8px) scale(0.96); }
+
+.fd-panel.fd-open {
+  visibility: visible;
+  transition: opacity 0.2s ease, transform 0.26s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
+}
+
+.fd-panel.fd-visible { opacity: 1; transform: translateY(0) scale(1); }
+.fd-panel.fd-visible::before { opacity: 1; }
+
+/* 关闭：透明度先退，随后 .fd-open 由 JS 移除、visibility 归位 */
+.fd-panel.fd-closing { opacity: 0; }
+.fd-panel:not(.fd-above).fd-closing { transform: translateY(-6px) scale(0.97); }
+.fd-panel.fd-above.fd-closing { transform: translateY(6px) scale(0.97); }
+
+.fd-list {
+  position: relative;
+  z-index: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(58vh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.fd-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.3;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+/* 逐项错落浮现：延迟由 JS 写入的 --fd-i 决定 */
+.fd-panel.fd-visible .fd-option {
+  animation: fdOptionIn 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--fd-i, 0) * 34ms);
+}
+
+@keyframes fdOptionIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fd-check {
+  flex: 0 0 auto;
+  width: 13px;
+  font-size: 11px;
+  color: var(--accent);
+  opacity: 0;
+  transform: scale(0.55);
+  transition: opacity 0.22s ease, transform 0.3s cubic-bezier(0.34, 1.5, 0.64, 1);
+}
+
+.fd-option-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 选中态：左侧渐变竖条 + 勾选 + 提亮 */
+.fd-option.fd-selected {
+  color: var(--accent-hover);
+  background: rgba(196, 181, 253, 0.1);
+}
+
+.fd-option.fd-selected::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  width: 3px;
+  height: 58%;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  background: var(--accent-gradient);
+  box-shadow: 0 0 10px rgba(196, 181, 253, 0.7);
+}
+
+.fd-option.fd-selected .fd-check { opacity: 1; transform: scale(1); }
+
+.fd-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* 细指针设备才有真正的悬停态 */
+@media (hover: hover) and (pointer: fine) {
+  .fd-trigger:hover {
+    transform: translateY(-2px);
+    color: var(--text-primary);
+    border-color: rgba(196, 181, 253, 0.6);
+    box-shadow:
+      0 0 30px rgba(167, 139, 250, 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      inset 0 0 24px rgba(196, 181, 253, 0.12);
+  }
+
+  .fd-trigger:hover::before { opacity: 1; }
+  .fd-trigger:hover::after { opacity: 1; animation: fdSweep 0.95s ease; }
+  .fd-trigger:hover .fd-icon { color: var(--accent); }
+  .fd-trigger:hover .fd-chevron { color: var(--accent); }
+
+  .fd-option:hover {
+    background: rgba(196, 181, 253, 0.14);
+    color: var(--text-primary);
+    transform: translateX(2px);
+  }
+}
+
+.fd-trigger:active { transform: scale(0.975); }
+
+@keyframes fdSweep {
+  from { left: -60%; }
+  to   { left: 120%; }
+}
+
+/* 触屏：没有真正悬停，复位会"粘"住的悬停态 */
+@media (hover: none) {
+  .fd-trigger:hover {
+    transform: none;
+    color: var(--text-secondary);
+    border-color: rgba(216, 204, 248, 0.3);
+  }
+  .fd-trigger:hover::before,
+  .fd-trigger:hover::after { opacity: 0; animation: none; }
+  .fd-option:hover { transform: none; }
+}
+
+/* 移动端 / 触屏：触摸目标加大，关掉面板实时模糊（滑动成本高） */
+@media (max-width: 599px), (pointer: coarse) {
+  .fd-trigger {
+    gap: 5px;
+    min-height: 44px;
+    font-size: 13px;
+    padding: 11px 26px 11px 9px;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .fd-icon { width: 14px; font-size: 11px; }
+  .fd-chevron { right: 9px; }
+
+  /* 手机上三个下拉并排，横向空间紧：圆点不再占行内位置，
+     改由按钮边框高亮表达「已筛选」 */
+  .fd-dot { display: none; }
+
+  .fd.fd-custom .fd-trigger {
+    border-color: rgba(196, 181, 253, 0.62);
+    color: var(--text-primary);
+  }
+
+  .fd.fd-active .fd-trigger { border-color: rgba(196, 181, 253, 0.78); }
+
+  .fd-panel {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* 选项触摸目标不低于 44px（行高 + 内边距凑不够时由 min-height 兜底） */
+  .fd-option {
+    padding: 12px 10px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+
+  .fd-list { max-height: min(52vh, 300px); }
+}
+
+/* 极小屏：三个下拉并排时横向极紧（每个按钮可用宽度仅约 110px），
+   字号与内边距都收到和原 .filter-select 同档，保证「全部类型 / 默认排序」
+   四个字完整显示不被省略 */
+@media (max-width: 399px) {
+  .fd-trigger {
+    gap: 3px;
+    padding: 10px 21px 10px 6px;
+    font-size: 11px;
+  }
+
+  .fd-icon { width: 11px; font-size: 10px; }
+  .fd-chevron { right: 7px; font-size: 10px; }
+  .fd-option { font-size: 13px; }
+}
+
+/* 减少动态：只保留即时显隐（选择器与上方同权重段对齐，靠源顺序覆盖） */
+@media (prefers-reduced-motion: reduce) {
+  .fd-trigger,
+  .fd-trigger::before,
+  .fd-trigger::after,
+  .fd-icon,
+  .fd-chevron,
+  .fd-dot,
+  .fd-label.fd-flip,
+  .fd-option,
+  .fd-panel,
+  .fd-panel.fd-open,
+  .fd-panel.fd-visible,
+  .fd-panel.fd-closing,
+  .fd-ripple {
+    animation: none;
+    transition: none;
+  }
+
+  .fd-panel.fd-visible .fd-option {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .fd-option { opacity: 1; transform: none; }
+  .fd-trigger:hover { transform: none; }
+}
+
+/* ============================================================
+   打开页面：首屏入场编排（桌面 / 移动端同步优化）
+   ------------------------------------------------------------
+   只做一次性入场，不引入常驻动画，避免和已有的粒子 / 流光叠加耗电。
+   顶部加载条 + 列表骨架屏在云端数据返回前兜住空白，数据到位后由
+   render() 覆盖骨架、并给 <html> 加上 .app-ready 收起加载条。
+   ============================================================ */
+
+@keyframes appRiseIn {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); filter: blur(6px); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes appRiseInLite {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes appFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fabBootIn {
+  0%   { opacity: 0; transform: scale(0.4) rotate(-90deg); }
+  60%  { opacity: 1; transform: scale(1.12) rotate(6deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+.header-content,
+.filter-bar,
+.stats-bar,
+.search-row {
+  animation: appRiseIn 0.62s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.header-content { animation-delay: 0.02s; }
+.filter-bar     { animation-delay: 0.1s; }
+.stats-bar      { animation-delay: 0.17s; }
+.search-row     { animation-delay: 0.24s; }
+
+.list-container { animation: appFadeIn 0.5s ease 0.26s backwards; }
+
+/* 卡片错落入场：序号由 app.js 写进 --ci（上限 12），延迟在此统一控制，
+   移动端断点只需覆盖这一处即可整体收紧 */
+.card { animation-delay: calc(var(--ci, 0) * 42ms); }
+
+.empty-state.visible { animation: appFadeIn 0.5s ease backwards; }
+
+.fab { animation: fabBootIn 0.66s cubic-bezier(0.34, 1.4, 0.64, 1) 0.42s backwards; }
+
+/* 标题栏一次性扫光，呼应顶部加载条 */
+.header-content::after {
+  animation: headerSheen 1.1s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+}
+
+@keyframes headerSheen {
+  from { transform: scaleX(0); opacity: 0; }
+  40%  { opacity: 1; }
+  to   { transform: scaleX(1); opacity: 0.7; }
+}
+
+/* ---------- 首屏光晕：一次性的环境光扩散，数据就位后淡出 ---------- */
+.boot-bloom {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 62% 46% at 50% 8%, rgba(196, 181, 253, 0.18), transparent 70%),
+    radial-gradient(ellipse 78% 52% at 50% 104%, rgba(167, 139, 250, 0.14), transparent 74%);
+  animation: bootBloom 1.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: opacity 0.6s ease;
+}
+
+html.app-ready .boot-bloom { opacity: 0; }
+
+@keyframes bootBloom {
+  from { opacity: 0; transform: scale(1.06); }
+  55%  { opacity: 1; }
+  to   { opacity: 0.72; transform: scale(1); }
+}
+
+/* ---------- 顶部加载条 ---------- */
+.boot-line {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 500;
+  pointer-events: none;
+  background-image: linear-gradient(90deg, transparent, rgba(196, 181, 253, 0.92), rgba(232, 121, 249, 0.7), transparent);
+  background-size: 42% 100%;
+  background-repeat: no-repeat;
+  animation: bootLine 1.15s ease-in-out infinite;
+  transition: opacity 0.45s ease;
+}
+
+html.app-ready .boot-line { opacity: 0; }
+
+@keyframes bootLine {
+  0%   { background-position: -42% 0; }
+  100% { background-position: 142% 0; }
+}
+
+/* ---------- 列表骨架屏（数据到位前） ---------- */
+.boot-skeleton {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 14px;
+  animation: appFadeIn 0.4s ease 0.3s backwards;
+}
+
+.boot-skel-card {
+  position: relative;
+  min-height: 174px;
+  border-radius: var(--card-radius);
+  border: 1px solid rgba(216, 204, 248, 0.18);
+  background: linear-gradient(145deg, rgba(30, 24, 45, 0.34), rgba(17, 13, 27, 0.42));
+  overflow: hidden;
+}
+
+.boot-skel-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(196, 181, 253, 0.14), transparent);
+  transform: translateX(-100%);
+  animation: skelSweep 1.5s ease-in-out infinite;
+  animation-delay: calc(var(--skel-i, 0) * 140ms);
+}
+
+@keyframes skelSweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+@media (min-width: 600px) and (max-width: 959px) {
+  .boot-skeleton { grid-template-columns: repeat(2, 1fr); }
+  .boot-skel-card:nth-child(n + 5) { display: none; }
+}
+
+@media (min-width: 960px) {
+  .boot-skeleton { grid-template-columns: repeat(3, 1fr); }
+  .boot-skel-card:nth-child(n + 4) { display: none; }
+}
+
+/* 移动端 / 触屏：入场去掉 filter 模糊（弱 GPU 上每帧重新滤镜最贵），
+   骨架屏扫光也一并降级为静态呼吸 */
+@media (max-width: 599px), (pointer: coarse) {
+  .header-content,
+  .filter-bar,
+  .stats-bar,
+  .search-row {
+    animation-name: appRiseInLite;
+    animation-duration: 0.5s;
+  }
+
+  /* 手机上首屏更快落位：卡片错落间隔收紧，避免长时间"空窗" */
+  .card {
+    animation-delay: calc(var(--ci, 0) * 24ms);
+  }
+
+  .boot-skel-card::after {
+    animation: skelPulse 1.6s ease-in-out infinite;
+    transform: none;
+  }
+}
+
+@keyframes skelPulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-content,
+  .filter-bar,
+  .stats-bar,
+  .search-row,
+  .list-container,
+  .empty-state.visible,
+  .fab,
+  .header-content::after,
+  .boot-line,
+  .boot-bloom,
+  .boot-skeleton,
+  .boot-skel-card::after {
+    animation: none;
+  }
+
+  html.app-ready .boot-line { display: none; }
+  html.app-ready .boot-bloom { display: none; }
+}
+

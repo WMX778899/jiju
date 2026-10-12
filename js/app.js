@@ -417,6 +417,8 @@ class AniListApp {
     // 云端推送失败回滚时，自动刷新界面，保证与服务器一致
     AnimeDB.onChange(() => this.render());
     this.render();
+    // 首屏入场编排交给 CSS：延迟写在样式表里，移动端断点可统一覆盖
+    markAppReady();
     // 暴露给全局，用于远程同步时自动刷新
     window.__anilistApp = this;
   }
@@ -802,9 +804,12 @@ class AniListApp {
       : '';
 
     const typeIcon = TYPE_ICONS[entry.type] || 'film';
+    // 错落入场序号交给 CSS 变量，延迟统一写在样式表里（移动端断点可整体覆盖）。
+    // 上限 12：长列表后面的卡片不再越等越久
+    const stagger = Math.min(index || 0, 12);
 
     return `
-      <div class="card" data-id="${entry.id}" style="animation-delay: ${index * 0.04}s">
+      <div class="card" data-id="${entry.id}" style="--ci: ${stagger}">
         <div class="card-header">
           <div class="card-type-badge" data-type="${entry.type}">
             <i class="fa-solid fa-${typeIcon}"></i>
@@ -832,6 +837,22 @@ class AniListApp {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+  }
+}
+
+// ============================================================
+// 首屏状态：数据到位、首帧渲染完成后收起加载条与骨架屏
+// ============================================================
+
+function markAppReady() {
+  const html = document.documentElement;
+  if (!html || html.classList.contains('app-ready')) return;
+  const apply = () => html.classList.add('app-ready');
+  // 双 rAF：保证 .app-ready 晚于卡片首帧动画的起始态，收起时不闪
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => requestAnimationFrame(apply));
+  } else {
+    setTimeout(apply, 16);
   }
 }
 

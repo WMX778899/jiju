@@ -13,7 +13,58 @@
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=Zen+Dots&display=swap"></noscript>
   <!-- Font Awesome 本地自托管：cdnjs 实测阻塞 1.4~12s，渲染阻塞资源必须同源 -->
   <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css?v=13">
+  <link rel="stylesheet" href="css/style.css?v=14">
+  <!-- 首屏内联样式：必须在外部样式表之外先落地，
+       否则环境光 / 顶部加载条的入场会等 CSS 到达才开始 -->
+  <style>
+    /* 打开页面时的一次性环境光 + 顶部加载条。
+       数据就位后由 js/app.js 给 <html> 加 .app-ready，两者一起淡出。 */
+    .boot-bloom {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0;
+      background:
+        radial-gradient(ellipse 62% 46% at 50% 8%, rgba(196, 181, 253, 0.18), transparent 70%),
+        radial-gradient(ellipse 78% 52% at 50% 104%, rgba(167, 139, 250, 0.14), transparent 74%);
+      animation: bootBloomIn 1.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+      transition: opacity 0.6s ease;
+    }
+    html.app-ready .boot-bloom { opacity: 0; }
+
+    @keyframes bootBloomIn {
+      from { opacity: 0; transform: scale(1.06); }
+      55%  { opacity: 1; }
+      to   { opacity: 0.72; transform: scale(1); }
+    }
+
+    .boot-line {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      z-index: 500;
+      pointer-events: none;
+      background-image: linear-gradient(90deg, transparent, rgba(196, 181, 253, 0.92), rgba(232, 121, 249, 0.7), transparent);
+      background-size: 42% 100%;
+      background-repeat: no-repeat;
+      animation: bootLineRun 1.15s ease-in-out infinite;
+      transition: opacity 0.45s ease;
+    }
+    html.app-ready .boot-line { opacity: 0; }
+
+    @keyframes bootLineRun {
+      0%   { background-position: -42% 0; }
+      100% { background-position: 142% 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .boot-bloom, .boot-line { animation: none; }
+      html.app-ready .boot-bloom, html.app-ready .boot-line { display: none; }
+    }
+  </style>
 </head>
 <body>
 
@@ -23,6 +74,10 @@
       window.location.replace('index.html');
     }
   </script>
+
+  <!-- ===== 首屏点缀：环境光 + 顶部加载条（加 .app-ready 后淡出） ===== -->
+  <div class="boot-bloom" aria-hidden="true"></div>
+  <div class="boot-line" aria-hidden="true"></div>
 
   <!-- ===== 背景粒子画布 ===== -->
   <canvas id="particleCanvas"></canvas>
@@ -52,8 +107,10 @@
 
     <section class="filter-bar">
       <div class="filter-group">
+        <!-- 三个筛选：原生 select 保留为唯一数据源（value / change 事件不变），
+             视觉由 js/filter-dropdown.js 生成的按钮 + 动画面板接管 -->
         <div class="filter-select-wrapper">
-          <select id="typeFilter" class="filter-select">
+          <select id="typeFilter" class="filter-select" data-fd-icon="fa-solid fa-shapes" aria-label="按类型筛选">
             <option value="all">全部类型</option>
             <option value="anime">动画</option>
             <option value="drama">剧集</option>
@@ -61,7 +118,7 @@
           </select>
         </div>
         <div class="filter-select-wrapper">
-          <select id="statusFilter" class="filter-select">
+          <select id="statusFilter" class="filter-select" data-fd-icon="fa-solid fa-signal" aria-label="按状态筛选">
             <option value="all">全部状态</option>
             <option value="watching">在看</option>
             <option value="want_to_watch">想看</option>
@@ -69,7 +126,7 @@
           </select>
         </div>
         <div class="filter-select-wrapper">
-          <select id="sortSelect" class="filter-select">
+          <select id="sortSelect" class="filter-select" data-fd-icon="fa-solid fa-arrow-down-wide-short" aria-label="排序方式">
             <option value="default" selected>默认排序</option>
             <option value="newest">最新添加</option>
             <option value="oldest">最早添加</option>
@@ -105,7 +162,15 @@
 
     <!-- ===== 列表区 ===== -->
     <main class="list-container" id="listContainer">
-      <!-- 卡片由 JS 动态渲染 -->
+      <!-- 骨架屏：云端数据返回前兜住空白，render() 会用真实卡片整体替换 -->
+      <div class="boot-skeleton" id="bootSkeleton" aria-hidden="true">
+        <div class="boot-skel-card" style="--skel-i: 0"></div>
+        <div class="boot-skel-card" style="--skel-i: 1"></div>
+        <div class="boot-skel-card" style="--skel-i: 2"></div>
+        <div class="boot-skel-card" style="--skel-i: 3"></div>
+        <div class="boot-skel-card" style="--skel-i: 4"></div>
+        <div class="boot-skel-card" style="--skel-i: 5"></div>
+      </div>
     </main>
 
     <!-- ===== 空状态 ===== -->
@@ -245,6 +310,7 @@
   </script>
   <script src="js/particles.js?v=5"></script>
   <script src="js/storage.js?v=5"></script>
-  <script src="js/app.js?v=9"></script>
+  <script src="js/app.js?v=10"></script>
+  <script src="js/filter-dropdown.js?v=1"></script>
 </body>
 </html>

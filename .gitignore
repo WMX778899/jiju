@@ -2,6 +2,10 @@
 .zcode/
 .zcodeignore
 
+# 本地验收脚手架与截图（非网站文件，不部署到 GitHub Pages）
+.tools/
+.verify/
+
 # 系统杂项
 Thumbs.db
 Desktop.ini
