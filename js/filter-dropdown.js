@@ -1,20 +1,24 @@
 /**
- * AniList 筛选下拉增强（全部类型 / 全部状态 / 默认排序）
+ * AniList 下拉增强（筛选条的全部类型 / 全部状态 / 默认排序，以及编辑弹窗的类型 / 状态）
  * ============================================================
- * 原生 <select class="filter-select"> 仍是唯一数据源：
+ * 原生 <select> 仍是唯一数据源：
  *   · value 的读写与 change 事件契约完全不变（js/app.js 无需改动）
  *   · 只在其上方渲染 .fd-trigger 按钮，选中后回写 select 并派发 change
  *   · 覆写实例上的 value setter，这样 app.js 里
  *     `statusFilter.value = xxx`（统计栏点击）也能同步按钮文字
+ *   · form.reset() 不走 value setter，所以额外监听表单的 reset 事件补一次同步
  *
  * 面板挂在 document.body 上并用 position:fixed 定位：
  *   .filter-bar 带 backdrop-filter，会成为 fixed 后代的包含块，
  *   把面板放在它内部会让坐标算错，也可能被祖先 overflow 裁切。
+ *
+ * 弹窗里的下拉（.fd-in-modal）：面板层级必须高于整屏遮罩才看得见，
+ * 且它自己所在的弹窗开合不能把它关掉。
  */
 (function () {
   'use strict';
 
-  var SELECTOR = 'select.filter-select';
+  var SELECTOR = 'select.filter-select, select.form-select';
   var DEFAULT_ICON = 'fa-solid fa-sliders';
   var CLOSE_MS = 190;
   var uid = 0;
@@ -44,6 +48,9 @@
     this.rafId = null;
     this._trackX = null;
     this._trackY = null;
+
+    // 弹窗里的下拉：层级要盖过遮罩，且「已筛选」圆点对表单取值没有意义
+    this.inModal = !!(select.closest && select.closest('.modal-content'));
 
     this.build();
     this.patchValue();
@@ -94,7 +101,7 @@
     root.appendChild(trigger);
 
     var panel = document.createElement('div');
-    panel.className = 'fd-panel';
+    panel.className = 'fd-panel' + (this.inModal ? ' fd-in-modal' : '');
     panel.id = this.key + '-panel';
     panel.setAttribute('role', 'listbox');
     panel.setAttribute('aria-labelledby', trigger.id);
@@ -141,6 +148,28 @@
 
     // 插到原生 select 之前，保证在 .filter-select-wrapper 内正常参与布局
     select.parentNode.insertBefore(root, select);
+
+    // 点 label 也要能开合：原生 select 时代 label 会把点击转给控件，
+    // 现在控件被隐藏了，得自己接上
+    if (select.id) {
+      var labels = document.querySelectorAll('label[for="' + select.id + '"]');
+      Array.prototype.forEach.call(labels, function (label) {
+        label.classList.add('fd-labelable');
+        label.addEventListener('click', function (e) {
+          e.preventDefault();
+          self.toggle();
+        });
+      });
+    }
+
+    // form.reset() 直接改 DOM 的 selectedness，不经过被覆写的 value setter
+    // （app.js 的「添加番剧」分支就是这么清空的），reset 事件在真正清空之前
+    // 派发，所以排到下一个 tick 再同步文字
+    if (select.form) {
+      select.form.addEventListener('reset', function () {
+        setTimeout(function () { self.sync(false); }, 0);
+      });
+    }
   };
 
   /**
@@ -205,6 +234,8 @@
       if (keys.indexOf(e.key) === -1) return;
       if (e.key === 'Escape') {
         e.preventDefault();
+        // 只关面板，别让弹窗自己的 Escape 处理器跟着把整张弹窗关掉
+        e.stopPropagation();
         self.close(true);
         return;
       }
@@ -248,14 +279,20 @@
     };
     document.addEventListener('keydown', this._onDocKeydown);
 
-    // 弹窗打开时收起下拉：面板层级低于整屏遮罩，留着会被遮罩盖住
+    // 弹窗打开时收起下拉：面板层级低于整屏遮罩，留着会被遮罩盖住。
+    // 但弹窗内部自己的下拉（.fd-in-modal）反过来——它就在遮罩之上，
+    // 只有「自己所在的那张弹窗关掉」时才该收起
     this._observer = null;
     if (typeof MutationObserver === 'function') {
       this._observer = new MutationObserver(function (records) {
         if (!self.isOpen) return;
         for (var i = 0; i < records.length; i++) {
           var el = records[i].target;
-          if (el.classList && el.classList.contains('modal-overlay') && el.classList.contains('open')) {
+          if (!el.classList || !el.classList.contains('modal-overlay')) continue;
+          var mine = self.inModal && el.contains(self.trigger);
+          if (el.classList.contains('open')) {
+            if (!mine) { self.close(false); return; }
+          } else if (mine) {
             self.close(false);
             return;
           }
@@ -332,7 +369,7 @@
       self.panel.classList.remove('fd-open', 'fd-visible', 'fd-closing');
     }, reducedMotion() ? 0 : CLOSE_MS);
 
-    if (returnFocus) this.trigger.focus();
+    if (returnFocus) this.trigger.focus({ preventScroll: true });
   };
 
   // ------------------------------------------------------------
@@ -412,9 +449,9 @@
       if (!initial) this.flipLabel();
     }
 
-    // 选到非首项（即已筛选）时点亮标记圆点
+    // 选到非首项（即已筛选）时点亮标记圆点；弹窗里的取值器没有「已筛选」这层意思
     var first = this.select.options.length ? this.select.options[0].value : null;
-    this.root.classList.toggle('fd-custom', value !== first);
+    this.root.classList.toggle('fd-custom', !this.inModal && value !== first);
 
     for (var i = 0; i < this.optionEls.length; i++) {
       var el = this.optionEls[i];
