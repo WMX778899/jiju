@@ -3860,3 +3860,117 @@ html.app-ready .boot-line { opacity: 0; }
   html.app-ready .boot-bloom { display: none; }
 }
 
+/* ============================================================
+   移动端编辑弹窗：类型 / 状态按钮（玻璃质感 + 点按动效）
+   ------------------------------------------------------------
+   与筛选下拉 .fd-trigger 同一套玻璃语言：淡紫渐变面 + 顶部 1px
+   高光 + 内外柔光；按下时一道高光条斜扫过并回弹缩放，聚焦（系统
+   选择器弹出）时边框点亮、光晕收拢。
+   视觉全部挂在 .form-select-wrapper 上，原生 <select> 退成透明的
+   内容层（只留文字与箭头），取值和弹系统选择器的行为都不变。
+   底部垫一层 var(--bg-input)：弹窗本身是半透明的，不垫则背后卡片
+   的文字会透进按钮里。
+   可调项：
+     · 玻璃浓度 —— linear-gradient 里的 0.27 / 0.10
+     · 按下力度 —— scale(0.978)；扫光时长 0.75s（复用 fdSweep）
+   ============================================================ */
+@media (max-width: 599px), (pointer: coarse) {
+  #formModal .form-select-wrapper {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid rgba(216, 204, 248, 0.3);
+    background-color: var(--bg-input);
+    background-image: linear-gradient(180deg, rgba(196, 181, 253, 0.27), rgba(196, 181, 253, 0.1));
+    box-shadow:
+      0 0 24px rgba(167, 139, 250, 0.09),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      inset 0 0 20px rgba(196, 181, 253, 0.08);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition:
+      transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1),
+      border-color 0.22s ease,
+      background-image 0.28s ease,
+      box-shadow 0.3s ease;
+  }
+
+  /* 透过玻璃的环境光斑：铺在 select 之下，只亮上半部 */
+  #formModal .form-select-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(120px circle at 24% 0%, rgba(221, 214, 254, 0.26), transparent 72%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease;
+  }
+
+  /* 点按时掠过的高光条，与 .fd-trigger::after 同款 */
+  #formModal .form-select-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -60%;
+    width: 45%;
+    background: linear-gradient(90deg, transparent, rgba(221, 214, 254, 0.26), transparent);
+    transform: skewX(-18deg);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* 让位给外壳：底色/边框清空，箭头 SVG 由上方 .form-select 规则保留 */
+  #formModal .form-select {
+    position: relative;
+    z-index: 1;
+    background-color: transparent;
+    border-color: transparent;
+    border-radius: 14px;
+    box-shadow: none;
+    color: var(--text-secondary);
+  }
+
+  /* 按下：回弹缩放 + 玻璃提亮 + 高光扫过 */
+  #formModal .form-select-wrapper:active {
+    transform: scale(0.978);
+    border-color: rgba(196, 181, 253, 0.66);
+    background-image: linear-gradient(180deg, rgba(196, 181, 253, 0.32), rgba(196, 181, 253, 0.15));
+  }
+
+  #formModal .form-select-wrapper:active::before { opacity: 1; }
+  #formModal .form-select-wrapper:active::after { opacity: 1; animation: fdSweep 0.75s ease; }
+  #formModal .form-select-wrapper:active .form-select { color: var(--text-primary); }
+
+  /* 聚焦：与 .fd.fd-active 同一档点亮（外扩一圈柔光作为键盘可见焦点） */
+  #formModal .form-select-wrapper:focus-within {
+    border-color: rgba(196, 181, 253, 0.78);
+    background-image: linear-gradient(180deg, rgba(196, 181, 253, 0.32), rgba(196, 181, 253, 0.15));
+    box-shadow:
+      0 0 0 3px rgba(196, 181, 253, 0.13),
+      0 0 30px rgba(167, 139, 250, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      inset 0 0 24px rgba(196, 181, 253, 0.12);
+  }
+
+  #formModal .form-select-wrapper:focus-within::before { opacity: 1; }
+  #formModal .form-select-wrapper:focus-within .form-select { color: var(--text-primary); }
+}
+
+/* 减少动态：只保留状态变色，关掉缩放、扫光与过渡
+   （:active 变体多一个伪类，权重高于裸选择器，必须一并列出才关得掉） */
+@media (prefers-reduced-motion: reduce) {
+  #formModal .form-select-wrapper,
+  #formModal .form-select-wrapper::before,
+  #formModal .form-select-wrapper::after,
+  #formModal .form-select-wrapper:active,
+  #formModal .form-select-wrapper:active::before,
+  #formModal .form-select-wrapper:active::after {
+    animation: none;
+    transition: none;
+  }
+
+  #formModal .form-select-wrapper:active { transform: none; }
+}
+
