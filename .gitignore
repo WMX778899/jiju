@@ -18,3 +18,7 @@ Desktop.ini
 
 # 部署暂存目录（不含 data.json）
 .deploy/
+
+# WorkBuddy 内部标记（应用卡片与发布记录，不属于网站文件）
+.wbapp_*.genie
+.workbuddy/
