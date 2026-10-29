@@ -1,0 +1,5 @@
+appId: wbapp_2A7oATL7M438fEimj502wa
+name: 追番清单
+localDir: D:\Claude\jiju\.deploy\site
+appType: web
+entryHtml: index.html

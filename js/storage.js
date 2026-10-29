@@ -26,79 +26,153 @@ class AnimeDB {
   static _changeListeners = [];
 
   // ===== 初始化：从 GitHub 拉取最新数据 =====
-  static async init(repoOverride) {
+  /**
+   * @param {string} repoOverride 仓库 owner/name
+   * @param {{force?: boolean}} options force=true 时跳过首屏缓存，必须等云端返回
+   *   （「从云端下载」按钮用，避免拿缓存冒充云端数据）
+   */
+  static async init(repoOverride, { force = false } = {}) {
     const repo = repoOverride || this._repo;
     if (!repo) {
       this._loaded = true;
       this._setStatus('error', '加载失败');
       throw new Error('未配置云端仓库');
     }
-    const [owner, name] = repo.split('/');
 
+    // 首屏优先：上次成功加载的快照先顶上，云端在后台校正（force 时跳过）
+    if (!force) {
+      const cached = this._readCache(repo);
+      if (cached) {
+        this._cache = cached;
+        this._repo = repo;
+        this._loaded = true;
+        this._setStatus('syncing');
+        this._refresh(repo);
+        return this._cache;
+      }
+    }
+
+    try {
+      const entries = await this._fetchCloud(repo);
+      this._cache = entries;
+      this._repo = repo;
+      this._loaded = true;
+      this._writeCache(entries);
+      this._setStatus('connected', '云端');
+      return this._cache;
+    } catch (error) {
+      this._loaded = true;
+      this._setStatus('error', '加载失败');
+      throw error;
+    }
+  }
+
+  /** 后台刷新：拿到云端数据后整体替换并通知界面重绘；失败时保留缓存内容 */
+  static _refresh(repo) {
+    return this._fetchCloud(repo)
+      .then((entries) => {
+        this._cache = entries;
+        this._writeCache(entries);
+        this._setStatus('connected', '云端');
+        this._emitChange();
+      })
+      .catch(() => this._setStatus('error', '刷新失败'));
+  }
+
+  /**
+   * 三个数据源并发拉取，谁先成功用谁：
+   * GitHub API（实时，配了 Token 才可靠）/ raw CDN / jsDelivr。
+   * 旧实现是串行 fallback，前一个不通时整页要等到超时才继续。
+   */
+  static _fetchCloud(repo) {
+    const [owner, name] = repo.split('/');
     const cfg = this.getGitHubConfig();
     const headers = {};
     if (cfg && cfg.token) headers['Authorization'] = `Bearer ${cfg.token}`;
 
-    // 先尝试 GitHub API（实时）
-    // 如果失败则 fallback 到 raw CDN（可能有缓存延迟）
-    let data = null;
-    let lastError = null;
+    return this._race([
+      () => this._loadFromApi(owner, name, headers, cfg),
+      () => this._loadFromJson(`https://raw.githubusercontent.com/${owner}/${name}/main/data.json`),
+      () => this._loadFromJson(`https://cdn.jsdelivr.net/gh/${owner}/${name}@main/data.json`),
+    ]);
+  }
+
+  /** 并发竞速：第一个成功的结果胜出，全部失败才报错 */
+  static _race(sources) {
+    return new Promise((resolve, reject) => {
+      let failed = 0;
+      let lastError = null;
+      sources.forEach((load) => {
+        Promise.resolve()
+          .then(load)
+          .then(resolve)
+          .catch((error) => {
+            lastError = error;
+            failed += 1;
+            if (failed === sources.length) reject(lastError || new Error('无法加载云端数据'));
+          });
+      });
+    });
+  }
+
+  static async _loadFromApi(owner, name, headers, cfg) {
+    const res = await this._fetchWithTimeout(
+      `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
+      { headers },
+      10000
+    );
+    if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+    const d = await res.json();
+    const raw = atob(d.content);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    const data = JSON.parse(new TextDecoder().decode(bytes));
+    if (cfg && cfg.token) { cfg._sha = d.sha; this.saveGitHubConfig(cfg); }
+    return this._normalize(data);
+  }
+
+  static async _loadFromJson(url) {
+    const res = await this._fetchWithTimeout(url, { cache: 'no-cache' }, 6000);
+    if (!res.ok) throw new Error(`CDN ${res.status}`);
+    return this._normalize(await res.json());
+  }
+
+  static _normalize(data) {
+    const entries = Array.isArray(data) ? data : data && data.entries;
+    if (!Array.isArray(entries)) throw new Error('云端数据格式不正确');
+    return entries;
+  }
+
+  static _fetchWithTimeout(url, options = {}, ms = 6000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    return fetch(url, { ...options, signal: controller.signal })
+      .finally(() => clearTimeout(timer));
+  }
+
+  // ===== 首屏缓存（只用于加速首屏，云端始终为准）=====
+  static CACHE_KEY = 'anilist_data_cache_v1';
+  static CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+
+  static _readCache(repo) {
     try {
-      const res = await fetch(
-        `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
-        { headers }
-      );
-      if (res.ok) {
-        const d = await res.json();
-        const decoded = (() => {
-          const raw = atob(d.content);
-          const bytes = new Uint8Array(raw.length);
-          for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-          return new TextDecoder().decode(bytes);
-        })();
-        data = JSON.parse(decoded);
-        if (cfg && cfg.token) { cfg._sha = d.sha; this.saveGitHubConfig(cfg); }
-      } else {
-        lastError = new Error(`GitHub API ${res.status}`);
-      }
-    } catch (error) {
-      lastError = error;
-      /* API 不通，走 CDN 备选 */
-    }
+      const raw = localStorage.getItem(this.CACHE_KEY);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || obj.repo !== repo || !Array.isArray(obj.entries)) return null;
+      if (obj.savedAt && Date.now() - obj.savedAt > this.CACHE_TTL) return null;
+      return obj.entries;
+    } catch { return null; }
+  }
 
-    // API 失败时尝试多个 CDN 备选
-    const cdns = [
-      `https://raw.githubusercontent.com/${owner}/${name}/main/data.json`,
-      `https://cdn.jsdelivr.net/gh/${owner}/${name}@main/data.json`,
-    ];
-    for (const url of cdns) {
-      if (data) break;
-      try {
-        const res = await fetch(url, { cache: 'no-cache' });
-        if (res.ok) data = await res.json();
-        else lastError = new Error(`CDN ${res.status}`);
-      } catch (error) {
-        lastError = error;
-      }
-    }
-
-    if (data) {
-      const entries = Array.isArray(data) ? data : data.entries;
-      if (!Array.isArray(entries)) {
-        this._loaded = true;
-        this._setStatus('error', '加载失败');
-        throw new Error('云端数据格式不正确');
-      }
-      this._cache = entries;
-      this._repo = repo;
-      this._setStatus('connected', '云端');
-      this._loaded = true;
-      return this._cache;
-    }
-
-    this._loaded = true;
-    this._setStatus('error', '加载失败');
-    throw lastError || new Error('无法加载云端数据');
+  static _writeCache(entries) {
+    try {
+      localStorage.setItem(this.CACHE_KEY, JSON.stringify({
+        repo: this._repo,
+        savedAt: Date.now(),
+        entries,
+      }));
+    } catch { /* 隐私模式 / 配额不足：忽略，不影响主流程 */ }
   }
 
   /** 确保已初始化 */
@@ -164,6 +238,7 @@ class AnimeDB {
       createdAt: new Date().toISOString(),
     };
     this._cache.push(entry);
+    this._writeCache(this._cache);
     this._pushWithRollback(() => {
       const i = this._cache.indexOf(entry);
       if (i !== -1) this._cache.splice(i, 1);
@@ -189,6 +264,7 @@ class AnimeDB {
         entry[key] = val;
       }
     }
+    this._writeCache(this._cache);
     this._pushWithRollback(() => {
       const cur = this._cache.findIndex(e => e.id === id);
       if (cur !== -1) this._cache[cur] = snapshot;
@@ -201,6 +277,7 @@ class AnimeDB {
     const idx = this._cache.findIndex(e => e.id === id);
     if (idx === -1) return false;
     const [removed] = this._cache.splice(idx, 1);
+    this._writeCache(this._cache);
     this._pushWithRollback(() => {
       this._cache.splice(Math.min(idx, this._cache.length), 0, removed);
     });
@@ -212,6 +289,7 @@ class AnimeDB {
     if (!entry || !entry.id) return null;
     if (this._cache.some(e => e.id === entry.id)) return entry;
     this._cache.push(entry);
+    this._writeCache(this._cache);
     this._pushWithRollback(() => {
       const i = this._cache.indexOf(entry);
       if (i !== -1) this._cache.splice(i, 1);
@@ -233,6 +311,7 @@ class AnimeDB {
   static _pushWithRollback(rollback) {
     this._enqueuePush(false).catch(() => {
       rollback();
+      this._writeCache(this._cache);
       this._emitChange();
     });
   }

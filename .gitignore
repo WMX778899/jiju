@@ -15,3 +15,6 @@
 # 系统杂项
 Thumbs.db
 Desktop.ini
+
+# 部署暂存目录（不含 data.json）
+.deploy/

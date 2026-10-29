@@ -1025,7 +1025,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       showGitHubStatus('正在下载…');
       updateSyncUI('syncing');
       try {
-        await AnimeDB.init(repo);
+        // force：必须真的从云端下载，不能被首屏缓存顶替
+        await AnimeDB.init(repo, { force: true });
         const count = AnimeDB.getAll().length;
         showGitHubStatus(`✅ 已加载 ${count} 条云端数据`);
         updateSyncUI('connected', '云端');
