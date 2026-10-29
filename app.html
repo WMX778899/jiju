@@ -14,6 +14,27 @@
   <!-- Font Awesome 本地自托管：cdnjs 实测阻塞 1.4~12s，渲染阻塞资源必须同源 -->
   <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
   <link rel="stylesheet" href="css/style.css?v=18">
+  <!-- 数据预取：脚本还在下载时就把三路云端请求发出去，
+       DOMContentLoaded 后由 js/storage.js 直接复用，省掉「等资源下载完再发请求」的串行等待。
+       私有仓库需要 Token，这里从 localStorage 读一次；未配置时匿名请求会在 404 时被忽略。 -->
+  <script>
+    (function () {
+      var repo = 'WMX778899/jiju';
+      var token = '';
+      try {
+        var cfg = JSON.parse(localStorage.getItem('anilist_github_config') || 'null');
+        token = (cfg && cfg.token) || '';
+      } catch (e) { /* 无配置 */ }
+      var headers = token ? { Authorization: 'Bearer ' + token } : {};
+      var opts = { cache: 'no-cache' };
+      window.__prefetch = {
+        repo: repo,
+        api: fetch('https://api.github.com/repos/' + repo + '/contents/data.json', { cache: 'no-cache', headers: headers }),
+        raw: fetch('https://raw.githubusercontent.com/' + repo + '/main/data.json', opts),
+        jsdelivr: fetch('https://cdn.jsdelivr.net/gh/' + repo + '@main/data.json', opts),
+      };
+    })();
+  </script>
   <!-- 首屏内联样式：必须在外部样式表之外先落地，
        否则环境光 / 顶部加载条的入场会等 CSS 到达才开始 -->
   <style>
@@ -305,7 +326,7 @@
     // Token 由用户在弹窗中手动填写，保存在 localStorage
   </script>
   <script src="js/particles.js?v=6"></script>
-  <script src="js/storage.js?v=7"></script>
+  <script src="js/storage.js?v=8"></script>
   <script src="js/app.js?v=17"></script>
   <script src="js/filter-dropdown.js?v=2"></script>
 </body>

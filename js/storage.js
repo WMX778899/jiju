@@ -83,6 +83,7 @@ class AnimeDB {
    * 三个数据源并发拉取，谁先成功用谁：
    * GitHub API（实时，配了 Token 才可靠）/ raw CDN / jsDelivr。
    * 旧实现是串行 fallback，前一个不通时整页要等到超时才继续。
+   * 若页面 <head> 已预取（同仓库），直接复用那三个请求，省掉一段等待。
    */
   static _fetchCloud(repo) {
     const [owner, name] = repo.split('/');
@@ -90,10 +91,24 @@ class AnimeDB {
     const headers = {};
     if (cfg && cfg.token) headers['Authorization'] = `Bearer ${cfg.token}`;
 
+    const pre = (typeof window !== 'undefined' && window.__prefetch && window.__prefetch.repo === repo)
+      ? window.__prefetch
+      : null;
+
+    const api = pre
+      ? this._withDeadline(pre.api, 10000)
+      : this._fetchWithTimeout(`https://api.github.com/repos/${owner}/${name}/contents/data.json`, { headers }, 10000);
+    const raw = pre
+      ? this._withDeadline(pre.raw, 6000)
+      : this._fetchWithTimeout(`https://raw.githubusercontent.com/${owner}/${name}/main/data.json`, { cache: 'no-cache' }, 6000);
+    const jsd = pre
+      ? this._withDeadline(pre.jsdelivr, 6000)
+      : this._fetchWithTimeout(`https://cdn.jsdelivr.net/gh/${owner}/${name}@main/data.json`, { cache: 'no-cache' }, 6000);
+
     return this._race([
-      () => this._loadFromApi(owner, name, headers, cfg),
-      () => this._loadFromJson(`https://raw.githubusercontent.com/${owner}/${name}/main/data.json`),
-      () => this._loadFromJson(`https://cdn.jsdelivr.net/gh/${owner}/${name}@main/data.json`),
+      () => this._loadFromApi(api, cfg),
+      () => this._loadFromJson(raw),
+      () => this._loadFromJson(jsd),
     ]);
   }
 
@@ -115,12 +130,8 @@ class AnimeDB {
     });
   }
 
-  static async _loadFromApi(owner, name, headers, cfg) {
-    const res = await this._fetchWithTimeout(
-      `https://api.github.com/repos/${owner}/${name}/contents/data.json`,
-      { headers },
-      10000
-    );
+  static async _loadFromApi(response, cfg) {
+    const res = await response;
     if (!res.ok) throw new Error(`GitHub API ${res.status}`);
     const d = await res.json();
     const raw = atob(d.content);
@@ -131,8 +142,8 @@ class AnimeDB {
     return this._normalize(data);
   }
 
-  static async _loadFromJson(url) {
-    const res = await this._fetchWithTimeout(url, { cache: 'no-cache' }, 6000);
+  static async _loadFromJson(response) {
+    const res = await response;
     if (!res.ok) throw new Error(`CDN ${res.status}`);
     return this._normalize(await res.json());
   }
@@ -148,6 +159,15 @@ class AnimeDB {
     const timer = setTimeout(() => controller.abort(), ms);
     return fetch(url, { ...options, signal: controller.signal })
       .finally(() => clearTimeout(timer));
+  }
+
+  /** 给已经发出的请求（如 <head> 里的预取）补一个超时上限 */
+  static _withDeadline(promise, ms) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('请求超时')), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
   }
 
   // ===== 首屏缓存（只用于加速首屏，云端始终为准）=====
