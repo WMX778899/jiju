@@ -13,7 +13,7 @@
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=Zen+Dots&display=swap"></noscript>
   <!-- Font Awesome 本地自托管：cdnjs 实测阻塞 1.4~12s，渲染阻塞资源必须同源 -->
   <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css?v=14">
+  <link rel="stylesheet" href="css/style.css?v=18">
   <!-- 首屏内联样式：必须在外部样式表之外先落地，
        否则环境光 / 顶部加载条的入场会等 CSS 到达才开始 -->
   <style>
@@ -26,8 +26,8 @@
       pointer-events: none;
       opacity: 0;
       background:
-        radial-gradient(ellipse 62% 46% at 50% 8%, rgba(196, 181, 253, 0.18), transparent 70%),
-        radial-gradient(ellipse 78% 52% at 50% 104%, rgba(167, 139, 250, 0.14), transparent 74%);
+        radial-gradient(ellipse 62% 46% at 50% 8%, rgba(var(--accent-rgb), 0.18), transparent 70%),
+        radial-gradient(ellipse 78% 52% at 50% 104%, rgba(var(--accent-deep-rgb), 0.14), transparent 74%);
       animation: bootBloomIn 1.5s cubic-bezier(0.22, 1, 0.36, 1) both;
       transition: opacity 0.6s ease;
     }
@@ -47,7 +47,7 @@
       height: 2px;
       z-index: 500;
       pointer-events: none;
-      background-image: linear-gradient(90deg, transparent, rgba(196, 181, 253, 0.92), rgba(232, 121, 249, 0.7), transparent);
+      background-image: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.92), rgba(var(--accent-base-pink-rgb), 0.7), transparent);
       background-size: 42% 100%;
       background-repeat: no-repeat;
       animation: bootLineRun 1.15s ease-in-out infinite;
@@ -66,7 +66,7 @@
     }
   </style>
 </head>
-<body>
+<body class="theme-blue">
 
   <!-- ===== 权限验证（未通过密码则跳回门禁） ===== -->
   <script>
@@ -128,9 +128,10 @@
         <div class="filter-select-wrapper">
           <select id="sortSelect" class="filter-select" data-fd-icon="fa-solid fa-arrow-down-wide-short" aria-label="排序方式">
             <option value="default" selected>默认排序</option>
-            <option value="newest">最新添加</option>
-            <option value="oldest">最早添加</option>
-            <option value="title">名称排序</option>
+            <option value="newest">时间降序</option>
+            <option value="oldest">时间升序</option>
+            <option value="title">名称升序</option>
+            <option value="title-desc">名称降序</option>
           </select>
         </div>
       </div>
@@ -224,11 +225,6 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="formNotes">备注</label>
-          <textarea id="formNotes" class="form-textarea" placeholder="写下你的感受..." rows="3" maxlength="500"></textarea>
-        </div>
-
         <div class="form-actions">
           <button type="button" class="btn btn-cancel" id="formCancel">取消</button>
           <button type="submit" class="btn btn-submit" id="formSubmit">
@@ -308,9 +304,9 @@
     const GITHUB_DEFAULT_REPO = 'WMX778899/jiju';
     // Token 由用户在弹窗中手动填写，保存在 localStorage
   </script>
-  <script src="js/particles.js?v=5"></script>
-  <script src="js/storage.js?v=5"></script>
-  <script src="js/app.js?v=10"></script>
-  <script src="js/filter-dropdown.js?v=1"></script>
+  <script src="js/particles.js?v=6"></script>
+  <script src="js/storage.js?v=6"></script>
+  <script src="js/app.js?v=16"></script>
+  <script src="js/filter-dropdown.js?v=2"></script>
 </body>
 </html>

@@ -151,7 +151,7 @@ class AnimeDB {
   }
 
   // ===== 写入 =====
-  static add({ title, type = 'anime', status = 'want_to_watch', rating = 0, notes = '' }) {
+  static add({ title, type = 'anime', status = 'want_to_watch', rating = 0 }) {
     this._ensureLoaded();
     const normalizedTitle = String(title ?? '').trim();
     this._assertUniqueTitle(normalizedTitle, type);
@@ -161,7 +161,6 @@ class AnimeDB {
       type,
       status,
       rating: Math.min(5, Math.max(0, Number(rating) || 0)),
-      notes: String(notes ?? '').trim(),
       createdAt: new Date().toISOString(),
     };
     this._cache.push(entry);
@@ -181,13 +180,12 @@ class AnimeDB {
     const nextTitle = 'title' in updates ? String(updates.title ?? '').trim() : entry.title;
     const nextType = 'type' in updates ? updates.type : entry.type;
     this._assertUniqueTitle(nextTitle, nextType, id);
-    const allowed = ['title', 'type', 'status', 'rating', 'notes'];
+    const allowed = ['title', 'type', 'status', 'rating'];
     for (const key of allowed) {
       if (key in updates) {
         let val = updates[key];
         if (key === 'title') val = String(val ?? '').trim();
         if (key === 'rating') val = Math.min(5, Math.max(0, Number(val) || 0));
-        if (key === 'notes') val = String(val).trim();
         entry[key] = val;
       }
     }

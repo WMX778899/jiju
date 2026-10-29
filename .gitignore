@@ -6,6 +6,12 @@
 .tools/
 .verify/
 
+# 改动前的文件快照（保留在本地，不部署到 GitHub Pages）
+.backup/
+
+# 项目记忆与工作区数据（非网站文件）
+.workbuddy-ai/
+
 # 系统杂项
 Thumbs.db
 Desktop.ini

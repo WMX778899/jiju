@@ -7,6 +7,42 @@
 // 粒子背景动画（增强版）
 // ============================================================
 
+// ============================================================
+// 主题取色：粒子 / 星云 / 星光的颜色统一来自 CSS 变量，
+// 换肤时只改样式表，这里不用动。取不到变量时退回淡紫兜底，
+// 保证门禁页（无 .theme-blue）与旧版观感一致。
+// ============================================================
+
+function themeRgb(name, fallback) {
+  try {
+    const raw = (getComputedStyle(document.body).getPropertyValue(name) || '').trim();
+    const parts = raw.split(',').map((n) => parseFloat(n));
+    if (parts.length >= 3 && parts.slice(0, 3).every((n) => Number.isFinite(n))) {
+      return parts.slice(0, 3);
+    }
+  } catch (e) { /* 忽略：用兜底色 */ }
+  return fallback;
+}
+
+function rgbToHue(rgb) {
+  const [r, g, b] = rgb.map((v) => v / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  if (d === 0) return 0;
+  let h;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+}
+
+// 在主题色上提亮若干级，得到同色系的浅色（星光 / 流星尾迹）
+function tintRgba(rgb, lift, alpha) {
+  const [r, g, b] = rgb.map((v) => Math.min(255, Math.round(v + lift)));
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 class ParticleBackground {
   constructor(canvas) {
     this.canvas = canvas;
@@ -27,6 +63,10 @@ class ParticleBackground {
     // 移动端/触屏设备使用低配模式：更少的粒子、无光晕渐变、无两两连线，
     // 避免每帧大量 createRadialGradient/stroke 占用主线程导致滑动卡顿。
     this.lowPower = ParticleBackground.isLowPowerDevice();
+    // 取色必须在 body 上有主题类之后（脚本在 body 末尾执行，安全）
+    this.tint = themeRgb('--accent-rgb', [196, 181, 253]);
+    this.deepTint = themeRgb('--accent-base-rgb', [168, 85, 247]);
+    this.hue = rgbToHue(this.tint);
     this.resize();
     this.initParticles();
     this.initStars();
@@ -64,7 +104,10 @@ class ParticleBackground {
         alpha: Math.random() * 0.5 + 0.1,
         pulse: Math.random() * Math.PI * 2,
         pulseSpeed: Math.random() * 0.02 + 0.005,
-        hue: Math.random() < 0.7 ? 270 + Math.random() * 30 : (Math.random() < 0.5 ? 330 : 220),
+        // 色相以主题色为基准：七成落在主色邻近，其余一档偏冷、一档偏暖
+        hue: Math.random() < 0.7
+          ? this.hue + 8 + Math.random() * 30
+          : (Math.random() < 0.5 ? this.hue + 40 : this.hue - 25),
       };
     });
   }
@@ -123,7 +166,7 @@ class ParticleBackground {
     // 预渲染的星云光斑精灵：每帧只需 3 次 drawImage，开销极低，
     // 却能给深色背景加一层缓慢漂移的色彩纵深
     this.nebula = [];
-    const hues = [268, 285, 320];
+    const hues = [6, 23, 40].map((o) => (this.hue + o) % 360);
     for (let i = 0; i < 3; i++) {
       const size = 512;
       const sprite = document.createElement('canvas');
@@ -201,8 +244,8 @@ class ParticleBackground {
       const tailX = m.x - m.vx * 8;
       const tailY = m.y - m.vy * 8;
       const g = ctx.createLinearGradient(m.x, m.y, tailX, tailY);
-      g.addColorStop(0, `rgba(225, 210, 255, ${(0.85 * fade).toFixed(3)})`);
-      g.addColorStop(1, 'rgba(225, 210, 255, 0)');
+      g.addColorStop(0, tintRgba(this.tint, 28, (0.85 * fade).toFixed(3)));
+      g.addColorStop(1, tintRgba(this.tint, 28, 0));
       ctx.strokeStyle = g;
       ctx.lineWidth = 1.6;
       ctx.lineCap = 'round';
@@ -261,14 +304,14 @@ class ParticleBackground {
       const a = s.alpha * flicker;
       ctx.beginPath();
       ctx.arc(sx, sy, s.size, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(200, 180, 255, ${a})`;
+      ctx.fillStyle = tintRgba(this.tint, 0, a);
       ctx.fill();
 
       // 亮星在闪烁峰值时带十字星芒
       if (s.size > 0.75 && flicker > 0.85) {
         const flare = ((flicker - 0.85) / 0.15) * s.alpha * 0.6;
         const fl = s.size * 6;
-        ctx.strokeStyle = `rgba(220, 205, 255, ${flare.toFixed(3)})`;
+        ctx.strokeStyle = tintRgba(this.tint, 24, flare.toFixed(3));
         ctx.lineWidth = 0.7;
         ctx.beginPath();
         ctx.moveTo(sx - fl, sy);
@@ -286,9 +329,10 @@ class ParticleBackground {
       this.aura.x += (this.mouse.x - this.aura.x) * 0.08;
       this.aura.y += (this.mouse.y - this.aura.y) * 0.08;
       const ag = ctx.createRadialGradient(this.aura.x, this.aura.y, 0, this.aura.x, this.aura.y, 110);
-      ag.addColorStop(0, 'rgba(168, 85, 247, 0.10)');
-      ag.addColorStop(0.5, 'rgba(168, 85, 247, 0.04)');
-      ag.addColorStop(1, 'rgba(168, 85, 247, 0)');
+      const [ar, agc, ab] = this.deepTint;
+      ag.addColorStop(0, `rgba(${ar}, ${agc}, ${ab}, 0.10)`);
+      ag.addColorStop(0.5, `rgba(${ar}, ${agc}, ${ab}, 0.04)`);
+      ag.addColorStop(1, `rgba(${ar}, ${agc}, ${ab}, 0)`);
       ctx.fillStyle = ag;
       ctx.fillRect(this.aura.x - 110, this.aura.y - 110, 220, 220);
     }
@@ -399,7 +443,7 @@ class ParticleBackground {
           vy: (Math.random() - 0.5) * 0.7 - mvy * 0.04 - 0.25,
           life: 0,
           maxLife: 35 + Math.random() * 30,
-          hue: 265 + Math.random() * 70,
+          hue: this.hue + Math.random() * 45,
           size: 0.8 + Math.random() * 1.4
         });
       }
@@ -510,7 +554,8 @@ const ANIME_SILHOUETTES = [
 ];
 
 const ANIME_FLOAT_ANIMS = ['silhouetteFloat', 'silhouetteFloat2', 'silhouetteFloat3'];
-const ANIME_COLORS = ['#a855f7', '#ec4899', '#c084fc', '#f59e0b', '#60a5fa', '#f472b6'];
+// 剪影配色：只在内容页（蓝色主题）使用，按蓝 / 青系取色，保持背景通透
+const ANIME_COLORS = ['#3b82f6', '#22d3ee', '#60a5fa', '#818cf8', '#38bdf8', '#93c5fd'];
 
 function createAnimeSilhouettes() {
   if (document.querySelector('.anime-bg-container')) return;

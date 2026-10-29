@@ -15,10 +15,33 @@
   <link rel="preload" as="image" href="images/bg1.jpg" fetchpriority="high">
   <!-- Font Awesome 本地自托管：cdnjs 实测阻塞 1.4~12s，渲染阻塞资源必须同源 -->
   <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css?v=13">
+  <link rel="stylesheet" href="css/style.css?v=18">
   <style>
     body { margin: 0; overflow: hidden; background: #0b0a12; }
-    #bgCanvas { position: fixed; inset: 0; z-index: 0; background: #0b0a12; }
+    /* 兜底层：门禁页背景照片，由 CSS 直接引用，不等 JS、不等其余 4 张图。
+       旧实现要 5 张图全部 onload 才开画，慢网下整屏一直是纯黑；
+       这一层保证首帧就有画面。canvas 画出内容后把它完全盖住，
+       两者同一张图、同一构图（cover + 居中），切换无跳变。 */
+    .bg-fallback {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      /* 两层背景：真图在上（到货即覆盖），64px 模糊底图在下（内联 base64，
+         约 0.5KB，零请求）。慢网下先看到模糊的夜色轮廓，而不是整屏纯黑。 */
+      background-color: #0b0a12;
+      background-image:
+        url(images/bg1.jpg),
+        url(data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjI4LjEwMgD/2wBDAAgMDA4MDhAQEBAQEBMSExQUFBMTExMUFBQVFRUZGRkVFRUUFBUVGBgZGRscGxoaGRocHB4eHiQkIiIqKiszMz7/xAByAAADAQADAQAAAAAAAAAAAAAABAUBAgYDBwEAAwEBAAAAAAAAAAAAAAAAAAQDAgEQAAIBAgUDAwQDAQAAAAAAAAECABEDITFREgRBYSITBfCh4cFikTIkcREBAQEBAQEBAAAAAAAAAAAAABEBIQISMf/AABEIACQAQAMBIgACEQADEQD/2gAMAwEAAhEDEQA/APi61jYEnq7E0FB3OkoWrg3qhz7RwptNqlZy9OUFt7caEj53hyFe3adlRtwGGR69idDD6xKek304vt8yPmUf4nq3V80Y6MABUH/tNYPbIdzQihXOnVRoTC5reZ6zUy4MImTKN0YSYZ13Cm41B0j3Fu27TVcGuudJOhJGY+j8fkWLiVDCmI0xp3nh7q3+LA0IuKDjmvn9p0i1cZfEGgbPSPXiCtHuFj0oaiTnf1vk3iv7HeVGvC42FEIr2bGgjPI5Nt7jKhrUrj0wtzqisi5fmM29ineGy6Y1ypNfPbWbckZc3FiNx/sF/mLstOpno1wEk/up+k4MwMqXJwmwkjLJymQnQJtTMhACEIQD/9k=);
+      background-position: center center, center center;
+      background-size: cover, cover;
+      background-repeat: no-repeat, no-repeat;
+      /* 与 canvas 首帧的 Ken Burns 比例对齐（q=0.18 时 scale=1.08），
+         否则 canvas 接管瞬间会看到一次 8% 的缩放跳变 */
+      transform: scale(1.08);
+    }
+    /* 背景必须透明：canvas 未绘制时露出下面的 .bg-fallback，而不是黑屏 */
+    #bgCanvas { position: fixed; inset: 0; z-index: 0; background: transparent; }
     /* 深色渐变遮罩（等价于旧 .bg-slideshow::after） */
     .bg-shade {
       position: fixed;
@@ -33,6 +56,9 @@
   </style>
 </head>
 <body>
+
+  <!-- 兜底层：CSS 背景照片（首帧立刻可见，不依赖 JS 与其余图片） -->
+  <div class="bg-fallback" aria-hidden="true"></div>
 
   <!-- 背景轮播：单 canvas 逐帧绘制。羽化圆扩展 + 由虚化对焦 + Ken Burns
        全部在 2D 绘制里完成，不创建/销毁任何合成层——合成层的资源分配
@@ -53,7 +79,7 @@
     </div>
   </div>
 
-  <script src="js/particles.js"></script>
+  <script src="js/particles.js?v=6"></script>
   <script>
     (function() {
       'use strict';
@@ -83,7 +109,11 @@
         var ctx = canvas.getContext('2d');
         var buf = document.createElement('canvas');
         var bctx = buf.getContext('2d');
-        var imgs = [], loaded = 0;
+        // 惰性加载：imgs 先占位，按需请求。旧实现用 loaded 计数等 5 张齐全才
+        // 开画，移动端慢网下（GitHub Pages 在国内尤其明显）整屏纯黑十几秒，
+        // 只要有一张图卡住就永远不出画面——这是「移动端背景全黑」的根因。
+        var imgs = new Array(SOURCES.length);
+        var ok = new Array(SOURCES.length);   // 该图是否可用（已解码 / 加载失败为 false）
         var current = 0;
         var born = [];   // 每张图的激活时刻（Ken Burns 相位用），首图可能为负
         var shown = [];  // 是否已显示过（不能用 born 的正负判断，首图 born 为负）
@@ -94,12 +124,44 @@
         }
         window.addEventListener('resize', function() { resize(); draw(performance.now()); });
 
-        SOURCES.forEach(function(src) {
+        // 按需加载第 i 张（幂等：已发起过就直接返回）
+        function ensure(i, cb) {
+          if (i < 0 || i >= SOURCES.length || imgs[i]) return;
           var im = new Image();
-          im.onload = im.onerror = function() { if (++loaded === SOURCES.length) begin(); };
-          im.src = src;
-          imgs.push(im);
-        });
+          im.onload = im.onerror = function() {
+            ok[i] = im.naturalWidth > 0;
+            if (cb) cb(i);
+          };
+          im.src = SOURCES[i];
+          imgs[i] = im;
+        }
+
+        // 从第 i 张开始，找到第一张能用的图并开画；全失败则保留 CSS 兜底层
+        function startWith(i) {
+          if (i >= SOURCES.length) return;
+          current = i;
+          ensure(i, function(idx) {
+            if (ok[idx]) begin();
+            else startWith(idx + 1);
+          });
+        }
+
+        // 预取轮播顺序里的下一张未请求过的图
+        function prefetchNext(from) {
+          for (var k = 1; k <= SOURCES.length; k++) {
+            var i = (from + k) % SOURCES.length;
+            if (!imgs[i]) { ensure(i, null); return; }
+          }
+        }
+
+        // 轮播顺序里下一个已就绪的图；没有则返回 -1
+        function nextReady(from) {
+          for (var k = 1; k <= SOURCES.length; k++) {
+            var i = (from + k) % SOURCES.length;
+            if (ok[i]) return i;
+          }
+          return -1;
+        }
 
         function begin() {
           resize();
@@ -108,11 +170,13 @@
           shown = SOURCES.map(function() { return false; });
           // 首图直接完整显示，不走开场渐变（激活时刻前移到扩展期之外；
           // 本地图加载快时该时刻会是负数，属正常，Ken Burns 相位随之略前移）
-          born[0] = now - REVEAL - 1;
-          shown[0] = true;
+          born[current] = now - REVEAL - 1;
+          shown[current] = true;
           draw(now);
-          setInterval(function() { advance(performance.now()); }, INTERVAL);
+          setTimeout(tick, INTERVAL);
           requestAnimationFrame(loop);
+          // 首图落屏后再取下一张：慢网下先保证有画面，别让 5 张图抢同一条管道
+          setTimeout(function() { prefetchNext(current); }, 1200);
         }
 
         // 随机扩展起点：与上一次保持足够距离，保证每次观感不同
@@ -126,10 +190,22 @@
         }
 
         function advance(now) {
-          current = (current + 1) % imgs.length;
+          var next = nextReady(current);
+          // 下一张还没解码好就原地等：宁可画面多停一会，也不要黑一下
+          if (next < 0) return false;
+          current = next;
           born[current] = now;
           shown[current] = true;
           originNow = randomOrigin();
+          prefetchNext(current);
+          return true;
+        }
+
+        // 自调度而非 setInterval：切换失败（下一张还没好）时快速重试，
+        // 成功则按 INTERVAL 正常轮播
+        function tick() {
+          var switched = advance(performance.now());
+          setTimeout(tick, switched ? INTERVAL : 1500);
         }
 
         // 与原 CSS cubic-bezier 一致的缓动
@@ -164,7 +240,7 @@
         }
 
         function drawKB(c, img, bornAt, now, w, h) {
-          if (!img.naturalWidth) return;
+          if (!img || !img.naturalWidth) return;
           var kb = kbPhase(now, bornAt, w, h);
           var ir = img.width / img.height, cr = w / h, dw, dh;
           if (ir > cr) { dh = h; dw = h * ir; } else { dw = w; dh = w / ir; }
@@ -187,11 +263,13 @@
         function draw(now) {
           var w = canvas.width, h = canvas.height;
           if (!w || !h || born.length === 0) return;
+          // 当前帧还没解码好：直接保留上一帧，别把画布刷成黑底
+          if (!imgs[current] || !imgs[current].naturalWidth) return;
           var dur = reduced ? 1000 : REVEAL;
           var age = now - born[current];
           var p = Math.min(Math.max(age / dur, 0), 1);
           var revealing = shown[current] && age >= 0 && p < 1;
-          var back = (current + imgs.length - 1) % imgs.length;
+          var back = (current + SOURCES.length - 1) % SOURCES.length;
 
           if (revealing) {
             // 扩展期：底下是上一张（首图首次显示时底下是深色底）
@@ -259,6 +337,10 @@
           window.location.replace('app.html');
           return;
         }
+
+        // 只等第一张：它一到就开画，其余 4 张在后台逐张预取
+        // （放在门禁跳转之后：已通过验证时直接跳转，不必再拉背景图）
+        startWith(0);
 
         function tryEnter() {
           if (input.value === PASSWORD) {

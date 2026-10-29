@@ -317,12 +317,13 @@
   // 开关
   // ------------------------------------------------------------
   Dropdown.prototype.toggle = function () {
+    if (this.select.disabled) return;
     if (this.isOpen) this.close(true);
     else this.open('selected');
   };
 
   Dropdown.prototype.open = function (focusMode) {
-    if (this.isOpen) return;
+    if (this.isOpen || this.select.disabled) return;
     if (activeInstance && activeInstance !== this) activeInstance.close(false);
 
     clearTimeout(this.timers.close);
@@ -443,6 +444,12 @@
     if (idx < 0) idx = 0;
     var text = labelOf(this.select.options[idx]);
     var value = this.select.value;
+
+    // 原生 select 被禁用时按钮同步置灰且不可展开（保留给需要锁定取值的场景）
+    var disabled = !!this.select.disabled;
+    this.root.classList.toggle('fd-disabled', disabled);
+    this.trigger.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    if (disabled && this.isOpen) this.close(false);
 
     if (this.label.textContent !== text) {
       this.label.textContent = text;

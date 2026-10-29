@@ -21,6 +21,12 @@ const STATUS_CLASSES = {
   completed: 'status-completed',
 };
 
+/** 读取主题色（CSS 变量里的 RGB 分量），装饰光效跟随换肤 */
+function themeColor(varName, fallback) {
+  const raw = (getComputedStyle(document.body).getPropertyValue(varName) || '').trim();
+  return `rgb(${raw || fallback})`;
+}
+
 /** 格式化日期 */
 function formatDate(isoStr) {
   if (!isoStr) return '';
@@ -38,24 +44,44 @@ function formatDate(isoStr) {
   return `${y}-${m}-${day}`;
 }
 
-/** 排序函数 */
-function sortEntries(entries, sortBy) {
+/**
+ * 排序函数。
+ * options.insertionOrder：时间并列时按导入顺序决胜（后导入的算「更新」）。
+ * 仅「看完」模块启用——该模块多为批量导入，创建时间常常完全相同，
+ * 只按时间排会保持数组原序，看起来就像没排序。
+ */
+function sortEntries(entries, sortBy, { insertionOrder = false } = {}) {
   const sorted = [...entries];
+  // 用对象引用记录原始下标：升序时小的在前，降序时大的在前
+  const seq = insertionOrder ? new Map(sorted.map((entry, i) => [entry, i])) : null;
+  const tieDesc = (a, b) => (seq.get(b) ?? 0) - (seq.get(a) ?? 0);
+  const byTimeAsc = (a, b) => (new Date(a.createdAt) - new Date(b.createdAt)) || (seq ? -tieDesc(a, b) : 0);
+  const byTimeDesc = (a, b) => (new Date(b.createdAt) - new Date(a.createdAt)) || (seq ? tieDesc(a, b) : 0);
+
   switch (sortBy) {
     case 'oldest':
-      sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      sorted.sort(byTimeAsc);
       break;
     case 'title':
       sorted.sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
       break;
+    case 'title-desc':
+      sorted.sort((a, b) => b.title.localeCompare(a.title, 'zh-CN'));
+      break;
     case 'newest':
     default:
-      sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      sorted.sort(byTimeDesc);
       break;
   }
   return sorted;
 }
 
+/**
+ * 各模块的最终排序方式。
+ * 「默认排序」按模块取默认：「看完」新的在前（配合导入顺序决胜），
+ * 「想看」旧的在前（先想看的先看），「在看」「全部状态」新的在前。
+ * 用户显式选择的升 / 降序在所有模块同样生效。
+ */
 function resolveSortBy(sortBy, status) {
   if (sortBy !== 'default') return sortBy;
   return status === 'want_to_watch' ? 'oldest' : 'newest';
@@ -294,7 +320,7 @@ function expandFrom(modal, origin, mode) {
   }, 950);
 }
 
-// 触发处绽开的光晕 + 数粒星尘向外飞散（颜色取自站内紫色系）
+// 触发处绽开的光晕 + 数粒星尘向外飞散（颜色取自主题色）
 function spawnBloomSparks(modal, o) {
   const host = document.createElement('div');
   host.className = 'bloom-sparks';
@@ -305,7 +331,12 @@ function spawnBloomSparks(modal, o) {
   glow.className = 'bloom-glow';
   host.appendChild(glow);
 
-  const COLORS = ['#a855f7', '#c084fc', '#e879f9', '#f5f3ff'];
+  const COLORS = [
+    themeColor('--accent-base-rgb', '59, 130, 246'),
+    themeColor('--accent-base-soft-rgb', '96, 165, 250'),
+    themeColor('--accent-base-pink-rgb', '34, 211, 238'),
+    themeColor('--accent-soft-rgb', '191, 219, 254'),
+  ];
   for (let i = 0; i < 10; i++) {
     const dot = document.createElement('div');
     dot.className = 'bloom-dot';
@@ -361,7 +392,14 @@ function fireConfetti() {
   container.className = 'confetti-container';
   document.body.appendChild(container);
 
-  const colors = ['#c4b5fd', '#a78bfa', '#ddd6fe', '#f5f1ff', '#8b5cf6', '#d8ccff'];
+  const colors = [
+    themeColor('--accent-rgb', '147, 197, 253'),
+    themeColor('--accent-deep-rgb', '96, 165, 250'),
+    themeColor('--accent-soft-rgb', '191, 219, 254'),
+    themeColor('--accent-base-soft-rgb', '96, 165, 250'),
+    themeColor('--accent-base-rgb', '59, 130, 246'),
+    themeColor('--accent-line-rgb', '199, 219, 245'),
+  ];
   const shapes = ['■', '●', '▲', '★', '♦'];
 
   for (let i = 0; i < 50; i++) {
@@ -467,7 +505,6 @@ class AniListApp {
     this.formTitle = this.$('formTitle');
     this.formType = this.$('formType');
     this.formStatus = this.$('formStatus');
-    this.formNotes = this.$('formNotes');
     this.formSubmit = this.$('formSubmit');
 
     // 删除模态框
@@ -583,7 +620,6 @@ class AniListApp {
       this.formTitle.value = entry.title;
       this.formType.value = entry.type;
       this.formStatus.value = entry.status;
-      this.formNotes.value = entry.notes || '';
     } else {
       // 添加模式
       this.editingId = null;
@@ -618,7 +654,6 @@ class AniListApp {
       title,
       type: this.formType.value,
       status: this.formStatus.value,
-      notes: this.formNotes.value.trim(),
     };
 
     try {
@@ -729,8 +764,9 @@ class AniListApp {
       status: this.currentStatus,
     });
 
-    // 排序
-    entries = sortEntries(entries, resolveSortBy(this.currentSort, this.currentStatus));
+    // 排序（「看完」模块时间常并列，按导入顺序决胜）
+    const insertionOrder = this.currentStatus === 'completed';
+    entries = sortEntries(entries, resolveSortBy(this.currentSort, this.currentStatus), { insertionOrder });
 
     // 渲染统计
     this.renderStats();
@@ -799,10 +835,6 @@ class AniListApp {
   }
 
   createCard(entry, index) {
-    const notesHtml = entry.notes
-      ? `<div class="card-notes">${this.escapeHtml(entry.notes)}</div>`
-      : '';
-
     const typeIcon = TYPE_ICONS[entry.type] || 'film';
     // 错落入场序号交给 CSS 变量，延迟统一写在样式表里（移动端断点可整体覆盖）。
     // 上限 12：长列表后面的卡片不再越等越久
@@ -825,7 +857,6 @@ class AniListApp {
             ${STATUS_LABELS[entry.status] || entry.status}
           </span>
         </div>
-        ${notesHtml}
         <div class="card-footer">
           <span class="card-date"><i class="fa-regular fa-calendar"></i> ${formatDate(entry.createdAt)}</span>
         </div>
