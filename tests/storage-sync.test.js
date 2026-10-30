@@ -21,6 +21,7 @@ function loadAnimeDB(overrides = {}) {
       setItem: (key, value) => storage.set(key, value),
     },
     setTimeout: overrides.setTimeout || setTimeout,
+    window: overrides.window,
   };
   vm.createContext(context);
   const source = fs.readFileSync(path.join(__dirname, '..', 'js', 'storage.js'), 'utf8');
@@ -180,4 +181,40 @@ test('titles are unique across statuses for the same type when spaces differ', (
   );
   const updated = AnimeDB.update(first.id, { status: 'completed' });
   assert.equal(updated.status, 'completed');
+});
+
+test('the head prefetch is consumed once, so a repeat download re-requests', async () => {
+  const reads = [];
+  let liveFetches = 0;
+  const response = label => ({
+    ok: true,
+    json: async () => {
+      reads.push(label);
+      return { entries: [{ id: 'entry', title: 'Entry' }] };
+    },
+  });
+  const fakeWindow = {
+    __prefetch: {
+      repo: 'owner/repo',
+      api: Promise.reject(new Error('api unavailable')),
+      raw: Promise.resolve(response('prefetch')),
+      jsdelivr: Promise.reject(new Error('jsdelivr unavailable')),
+    },
+  };
+  const { AnimeDB } = loadAnimeDB({
+    window: fakeWindow,
+    fetch: async () => {
+      liveFetches += 1;
+      return response('live');
+    },
+  });
+
+  await AnimeDB.init('owner/repo');
+  assert.equal(fakeWindow.__prefetch, null);
+
+  await AnimeDB.init('owner/repo', { force: true });
+
+  assert.equal(reads.filter(label => label === 'prefetch').length, 1);
+  assert.ok(reads.includes('live'));
+  assert.ok(liveFetches >= 1);
 });

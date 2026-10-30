@@ -83,7 +83,8 @@ class AnimeDB {
    * 三个数据源并发拉取，谁先成功用谁：
    * GitHub API（实时，配了 Token 才可靠）/ raw CDN / jsDelivr。
    * 旧实现是串行 fallback，前一个不通时整页要等到超时才继续。
-   * 若页面 <head> 已预取（同仓库），直接复用那三个请求，省掉一段等待。
+   * 若页面 <head> 已预取（同仓库），直接复用那三个请求，省掉一段等待；
+   * 预取只供第一次加载使用，见 _takePrefetch。
    */
   static _fetchCloud(repo) {
     const [owner, name] = repo.split('/');
@@ -91,9 +92,7 @@ class AnimeDB {
     const headers = {};
     if (cfg && cfg.token) headers['Authorization'] = `Bearer ${cfg.token}`;
 
-    const pre = (typeof window !== 'undefined' && window.__prefetch && window.__prefetch.repo === repo)
-      ? window.__prefetch
-      : null;
+    const pre = this._takePrefetch(repo);
 
     const api = pre
       ? this._withDeadline(pre.api, 10000)
@@ -110,6 +109,19 @@ class AnimeDB {
       () => this._loadFromJson(raw),
       () => this._loadFromJson(jsd),
     ]);
+  }
+
+  /**
+   * 预取只能被消费一次：Response 的 body 读完就废了。
+   * 取走即清空，第二次加载（如「从云端下载」）会重新发请求，
+   * 否则每个源都复用同一批已读的 Response，报 body stream already read。
+   */
+  static _takePrefetch(repo) {
+    if (typeof window === 'undefined') return null;
+    const pre = window.__prefetch;
+    if (!pre || pre.repo !== repo) return null;
+    window.__prefetch = null;
+    return pre;
   }
 
   /** 并发竞速：第一个成功的结果胜出，全部失败才报错 */
