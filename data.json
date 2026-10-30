@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T12:49:42.202Z",
+  "updatedAt": "2026-10-30T12:51:30.793Z",
   "entries": [
     {
       "id": "mslcnjhsw5476c",
@@ -115,6 +115,15 @@
       "title": "死亡笔记",
       "type": "anime",
       "status": "completed",
+      "rating": 0,
+      "notes": "",
+      "createdAt": "2026-07-20T13:42:44.079766Z"
+    },
+    {
+      "id": "000037rvwrcs2z",
+      "title": "重启咲良田",
+      "type": "anime",
+      "status": "watching",
       "rating": 0,
       "notes": "",
       "createdAt": "2026-07-20T13:42:44.079766Z"
