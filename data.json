@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-02T13:13:03.830Z",
+  "updatedAt": "2026-11-10T07:27:16.217Z",
   "entries": [
     {
       "id": "mslcnjhsw5476c",
@@ -316,6 +316,14 @@
       "rating": 0,
       "notes": "",
       "createdAt": "2026-10-14T09:57:55.940Z"
+    },
+    {
+      "id": "mwadal4cdw3ip3",
+      "title": "青春猪头少年不会梦到亲朋好友",
+      "type": "anime",
+      "status": "want_to_watch",
+      "rating": 0,
+      "createdAt": "2026-11-10T07:27:15.564Z"
     }
   ]
 }
